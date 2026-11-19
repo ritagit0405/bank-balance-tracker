@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>七帳戶資產管家 - 每月銀行餘額追蹤儀表板</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts: Noto Sans TC & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', '"Noto Sans TC"', 'sans-serif'],
+                    },
+                    colors: {
+                        slate: {
+                            850: '#1e293b',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* 自訂捲軸與微調樣式 */
+        body {
+            background-color: #f8fafc;
+            color: #0f172a;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .tabular-nums {
+            font-variant-numeric: tabular-nums;
+        }
+        /* 自訂核取方塊動效 */
+        .account-chip {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .account-chip:active {
+            transform: scale(0.97);
+        }
+        /* 隱藏數字輸入框上下箭頭 */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-blue-100 selection:text-blue-900">
+
+    <!-- 頂部導覽列 -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2">
+            <!-- Logo 與標題 -->
+            <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-sm">
+                    <i data-lucide="wallet" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-bold text-slate-900 tracking-tight leading-none">多帳戶資產管家</h1>
+                    <p class="text-xs text-slate-500 hidden sm:block mt-0.5">每月銀行餘額記錄與視覺化分析</p>
+                </div>
+            </div>
+
+            <!-- 功能按鈕群組 -->
+            <div class="flex items-center gap-1.5 sm:gap-2">
+                <button onclick="openAccountSettingsModal()" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer" title="新增、修改或刪除銀行帳戶">
+                    <i data-lucide="settings-2" class="w-4 h-4 text-slate-600"></i>
+                    <span>帳戶管理</span>
+                </button>
+                
+                <div class="relative" id="dataMenuContainer">
+                    <button onclick="toggleDataMenu()" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer">
+                        <i data-lucide="database" class="w-4 h-4 text-slate-600"></i>
+                        <span class="hidden sm:inline">資料管理</span>
+                        <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400"></i>
+                    </button>
+                    <!-- 下拉選單 -->
+                    <div id="dataMenuDropdown" class="hidden absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-lg border border-slate-100 py-1.5 z-40">
+                        <button onclick="loadSampleDataPrompt()" class="w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2.5">
+                            <i data-lucide="sparkles" class="w-4 h-4 text-amber-500"></i>
+                            <span>載入範例資料</span>
+                        </button>
+                        <button onclick="exportCSV()" class="w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2.5">
+                            <i data-lucide="file-spreadsheet" class="w-4 h-4 text-emerald-600"></i>
+                            <span>匯出 CSV 報表</span>
+                        </button>
+                        <button onclick="exportJSON()" class="w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2.5">
+                            <i data-lucide="download" class="w-4 h-4 text-blue-600"></i>
+                            <span>匯出 JSON 備份</span>
+                        </button>
+                        <label class="w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 cursor-pointer">
+                            <i data-lucide="upload" class="w-4 h-4 text-indigo-600"></i>
+                            <span>匯入 JSON 備份</span>
+                            <input type="file" id="importJsonInput" accept=".json" class="hidden" onchange="importJSON(event)">
+                        </label>
+                        <div class="my-1 border-t border-slate-100"></div>
+                        <button onclick="confirmClearAllData()" class="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2.5">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            <span>清空所有紀錄</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Toast 訊息提示區 -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- 主內容區 -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- 區塊 1：自選帳戶加總器 & 總覽橫幅 -->
+        <section class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 sm:p-6">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700">
+                            自選帳戶加總與圖表篩選
+                        </span>
+                        <span id="selectedCountBadge" class="text-xs text-slate-500 font-medium">已選 7 / 7 個帳戶</span>
+                    </div>
+                    <h2 class="text-base sm:text-lg font-bold text-slate-800 mt-1.5">勾選要納入計算與圖表顯示的銀行帳戶</h2>
+                </div>
+
+                <!-- 總額顯示卡片 -->
+                <div class="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-2xl px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 lg:min-w-[360px] shadow-sm">
+                    <div>
+                        <div class="flex items-center gap-1.5 text-slate-300 text-xs font-medium">
+                            <span>已選帳戶總餘額</span>
+                            <span id="summaryMonthLabel" class="px-1.5 py-0.5 rounded bg-white/10 text-white text-[11px]">2026-11</span>
+                        </div>
+                        <div id="selectedTotalAmount" class="text-2xl sm:text-3xl font-bold tracking-tight tabular-nums mt-1 text-white">
+                            NT$ 0
+                        </div>
+                    </div>
+                    <div class="flex sm:flex-col gap-1.5 shrink-0">
+                        <button onclick="selectAllAccounts(true)" class="px-2.5 py-1 text-xs font-medium bg-white/15 hover:bg-white/25 text-white rounded-lg transition-colors cursor-pointer">
+                            全選
+                        </button>
+                        <button onclick="selectAllAccounts(false)" class="px-2.5 py-1 text-xs font-medium bg-white/10 hover:bg-white/20 text-slate-200 rounded-lg transition-colors cursor-pointer">
+                            取消全選
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 帳戶彩色篩選按鈕區 -->
+            <div id="accountFilterChips" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 gap-2.5 pt-4">
+                <!-- 由 JS 動態渲染 -->
+            </div>
+        </section>
+
+        <!-- 區塊 2：新增紀錄表單 + 當月各帳戶最後一筆餘額卡片 -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- 左側 (4欄)：新增餘額紀錄表單 -->
+            <section class="lg:col-span-4 bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 sm:p-6 flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                                <i data-lucide="plus-circle" class="w-5 h-5"></i>
+                            </div>
+                            <h2 class="text-lg font-bold text-slate-800">新增餘額紀錄</h2>
+                        </div>
+                        <span class="text-xs text-slate-400">即時儲存</span>
+                    </div>
+
+                    <form id="recordForm" onsubmit="handleRecordSubmit(event)" class="space-y-4">
+                        <!-- 紀錄日期 -->
+                        <div>
+                            <label for="inputDate" class="block text-sm font-medium text-slate-700 mb-1.5">紀錄日期</label>
+                            <input type="date" id="inputDate" required
+                                class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all">
+                        </div>
+
+                        <!-- 銀行名稱選擇器 -->
+                        <div>
+                            <label for="inputAccount" class="block text-sm font-medium text-slate-700 mb-1.5">銀行帳戶</label>
+                            <div class="relative">
+                                <select id="inputAccount" required onchange="updateSelectColorIndicator()"
+                                    class="w-full pl-9 pr-8 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all cursor-pointer">
+                                    <!-- 由 JS 動態填充 -->
+                                </select>
+                                <span id="selectColorDot" class="w-3.5 h-3.5 rounded-full absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none shadow-xs"></span>
+                                <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                            </div>
+                        </div>
+
+                        <!-- 餘額輸入框 -->
+                        <div>
+                            <label for="inputBalance" class="block text-sm font-medium text-slate-700 mb-1.5">帳戶餘額 (NTD)</label>
+                            <div class="relative">
+                                <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-semibold text-sm">NT$</span>
+                                <input type="number" id="inputBalance" step="1" placeholder="例如：125000" required
+                                    class="w-full pl-12 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold text-base tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all">
+                            </div>
+                            <p class="text-[11px] text-slate-400 mt-1.5">提示：同月份多次輸入同一帳戶，系統會自動以最新日期（同日則最後一筆）作為該月結算餘額。</p>
+                        </div>
+
+                        <button type="submit"
+                            class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold text-sm rounded-xl shadow-sm hover:shadow transition-all flex items-center justify-center gap-2 cursor-pointer mt-2">
+                            <i data-lucide="check" class="w-4 h-4"></i>
+                            <span>儲存這筆紀錄</span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- 快捷提示 -->
+                <div class="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                    <span>目前共累積 <strong id="totalRecordsCount" class="text-slate-700">0</strong> 筆歷史紀錄</span>
+                    <button type="button" onclick="openAccountSettingsModal()" class="text-blue-600 hover:underline font-medium cursor-pointer">
+                        新增 / 管理帳戶 →
+                    </button>
+                </div>
+            </section>
+
+            <!-- 右側 (8欄)：當月每個帳戶最後一筆金額 -->
+            <section class="lg:col-span-8 bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 sm:p-6 flex flex-col">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                                <i data-lucide="calendar-check" class="w-5 h-5"></i>
+                            </div>
+                            <h2 class="text-lg font-bold text-slate-800">單月各帳戶最新餘額快照</h2>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-1">自動抓取指定月份內，每個帳戶最後一筆輸入的金額（點擊卡片可快速切換加總勾選）</p>
+                    </div>
+
+                    <!-- 月份切換控制器 -->
+                    <div class="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl self-start sm:self-auto">
+                        <button onclick="changeDashboardMonth(-1)" class="p-1.5 hover:bg-white rounded-lg text-slate-600 transition-colors cursor-pointer" title="上個月">
+                            <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                        </button>
+                        <input type="month" id="dashboardMonthPicker" onchange="onDashboardMonthChange(this.value)"
+                            class="bg-transparent text-sm font-bold text-slate-800 px-2 py-1 focus:outline-none cursor-pointer">
+                        <button onclick="changeDashboardMonth(1)" class="p-1.5 hover:bg-white rounded-lg text-slate-600 transition-colors cursor-pointer" title="下個月">
+                            <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 帳戶最新餘額卡片網格 -->
+                <div id="monthlyLatestGrid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5 flex-1">
+                    <!-- 由 JS 動態渲染 -->
+                </div>
+            </section>
+        </div>
+
+        <!-- 區塊 3：每月帳戶餘額變化柱狀圖 -->
+        <section class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-5 sm:p-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
+                            <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
+                        </div>
+                        <h2 class="text-lg font-bold text-slate-800">每月帳戶餘額變化趨勢圖</h2>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-1">顯示各月份已勾選帳戶的最終餘額變化，滑鼠懸停或點擊柱狀可查看詳細金額</p>
+                </div>
+
+                <!-- 圖表檢視模式切換與顯示範圍 -->
+                <div class="flex flex-wrap items-center gap-2">
+                    <div class="inline-flex bg-slate-100 p-1 rounded-xl">
+                        <button id="btnModeStacked" onclick="setChartMode('stacked')"
+                            class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white text-slate-900 shadow-xs transition-all cursor-pointer">
+                            堆疊柱狀圖
+                        </button>
+                        <button id="btnModeGrouped" onclick="setChartMode('grouped')"
+                            class="px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition-all cursor-pointer">
+                            分組比較圖
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 圖表畫布容器 -->
+            <div class="relative w-full h-[320px] sm:h-[380px]">
+                <canvas id="balanceBarChart"></canvas>
+                <!-- 無資料時的空狀態提示 -->
+                <div id="chartEmptyState" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-slate-50/80 rounded-xl border border-dashed border-slate-200">
+                    <i data-lucide="bar-chart-2" class="w-10 h-10 text-slate-300 mb-2"></i>
+                    <p class="text-sm font-medium text-slate-500">目前沒有可顯示的圖表資料</p>
+                    <p class="text-xs text-slate-400 mt-0.5">請確認上方至少勾選一個帳戶，或新增一筆餘額紀錄</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 區塊 4：所有輸入紀錄明細表 -->
+        <section class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+            <div class="p-5 sm:p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                            <i data-lucide="table-2" class="w-5 h-5"></i>
+                        </div>
+                        <h2 class="text-lg font-bold text-slate-800">所有歷史輸入紀錄明細</h2>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-1">依紀錄日期由新到舊排序，支援依銀行帳戶與月份快速篩選、編輯或刪除</p>
+                </div>
+
+                <!-- 表格篩選列 -->
+                <div class="flex flex-wrap items-center gap-2.5">
+                    <!-- 依銀行篩選 -->
+                    <div class="relative">
+                        <select id="tableFilterAccount" onchange="renderRecordsTable()"
+                            class="pl-3 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-700 font-medium appearance-none focus:outline-none focus:border-blue-500 cursor-pointer">
+                            <option value="all">全部銀行帳戶</option>
+                            <!-- 由 JS 動態填充 -->
+                        </select>
+                        <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                    </div>
+
+                    <!-- 依月份篩選 -->
+                    <div class="relative">
+                        <select id="tableFilterMonth" onchange="renderRecordsTable()"
+                            class="pl-3 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-700 font-medium appearance-none focus:outline-none focus:border-blue-500 cursor-pointer">
+                            <option value="all">全部月份</option>
+                            <!-- 由 JS 動態填充 -->
+                        </select>
+                        <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                    </div>
+
+                    <button id="btnResetFilters" onclick="resetTableFilters()" class="hidden px-3 py-2 text-xs font-medium text-blue-600 hover:bg-blue-50 rounded-xl transition-colors cursor-pointer">
+                        重設篩選
+                    </button>
+                </div>
+            </div>
+
+            <!-- 響應式表格容器 -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50/80 border-b border-slate-200/80 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            <th class="py-3.5 px-5">紀錄日期</th>
+                            <th class="py-3.5 px-5">銀行名稱</th>
+                            <th class="py-3.5 px-5 text-right">帳戶餘額</th>
+                            <th class="py-3.5 px-5 text-center w-32">狀態標記</th>
+                            <th class="py-3.5 px-5 text-right w-28">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recordsTableBody" class="divide-y divide-slate-100 text-sm">
+                        <!-- 由 JS 動態渲染 -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 表格空狀態 -->
+            <div id="tableEmptyState" class="hidden py-12 px-4 text-center">
+                <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
+                    <i data-lucide="inbox" class="w-6 h-6"></i>
+                </div>
+                <p class="text-sm font-semibold text-slate-700">找不到符合條件的紀錄</p>
+                <p class="text-xs text-slate-400 mt-1">請嘗試調整篩選條件，或點擊上方表單新增您的第一筆帳戶餘額</p>
+                <button onclick="loadSampleDataPrompt()" class="mt-4 inline-flex items-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium rounded-xl transition-colors cursor-pointer">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-400"></i>
+                    <span>一鍵載入 6 個月範例資料體驗</span>
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- 頁尾 -->
+    <footer class="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 text-center text-xs text-slate-400">
+        <p>資料皆安全儲存於您的瀏覽器本機空間（LocalStorage），建議定期使用右上角「匯出 JSON 備份」保存紀錄。</p>
+    </footer>
+
+    <!-- Modal 1：銀行帳戶管理視窗（修改名稱/顏色、新增、刪除、重置） -->
+    <div id="accountSettingsModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
+        <div class="bg-white rounded-2xl max-w-xl w-full shadow-xl border border-slate-100 overflow-hidden flex flex-col max-h-[88vh]">
+            <!-- Header -->
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                        <i data-lucide="landmark" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900">管理銀行帳戶與代表色</h3>
+                        <p class="text-[11px] text-slate-500">可自由修改名稱、更換代表色，或新增與刪除帳戶</p>
+                    </div>
+                </div>
+                <button onclick="closeAccountSettingsModal()" class="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 cursor-pointer">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- 快速新增帳戶列 -->
+            <div class="px-6 py-3.5 bg-slate-50/90 border-b border-slate-100 shrink-0">
+                <label class="block text-xs font-semibold text-slate-700 mb-2">＋ 新增銀行帳戶</label>
+                <div class="flex items-center gap-2">
+                    <div class="relative shrink-0" title="選擇新帳戶代表色">
+                        <input type="color" id="newAccountColorInput" value="#0EA5E9"
+                            class="w-10 h-10 p-1 bg-white border border-slate-200 rounded-xl cursor-pointer">
+                    </div>
+                    <input type="text" id="newAccountNameInput" maxlength="24" placeholder="輸入新銀行名稱（例如：富邦銀行、Line Bank）"
+                        onkeydown="if(event.key === 'Enter'){ event.preventDefault(); addNewAccountInModal(); }"
+                        class="flex-1 px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500">
+                    <button type="button" onclick="addNewAccountInModal()"
+                        class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl shadow-xs transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        <span>新增</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 既有帳戶清單表單 -->
+            <form id="accountSettingsForm" onsubmit="saveAccountSettings(event)" class="flex-1 overflow-y-auto px-6 py-4 space-y-2.5">
+                <div class="flex items-center justify-between text-xs text-slate-400 pb-1">
+                    <span>現有帳戶清單（共 <strong id="modalAccountCount" class="text-slate-600">0</strong> 個）</span>
+                    <span>點擊色塊可更換顏色</span>
+                </div>
+                <div id="accountSettingsInputs" class="space-y-2.5">
+                    <!-- 由 JS 動態產生可編輯/刪除的帳戶列 -->
+                </div>
+            </form>
+
+            <!-- Footer -->
+            <div class="px-6 py-3.5 border-t border-slate-100 bg-slate-50/50 flex flex-wrap items-center justify-between gap-2 shrink-0">
+                <button type="button" onclick="confirmResetDefaultAccounts()"
+                    class="px-3 py-2 text-xs font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-200/70 rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer">
+                    <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                    <span>恢復預設 7 帳戶</span>
+                </button>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="closeAccountSettingsModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer">
+                        取消
+                    </button>
+                    <button type="submit" form="accountSettingsForm" class="px-5 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition-colors cursor-pointer">
+                        儲存變更
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 2：編輯單筆紀錄視窗 -->
+    <div id="editRecordModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
+        <div class="bg-white rounded-2xl max-w-md w-full shadow-xl border border-slate-100 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="text-base font-bold text-slate-900">編輯餘額紀錄</h3>
+                <button onclick="closeEditRecordModal()" class="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 cursor-pointer">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <form id="editRecordForm" onsubmit="saveEditedRecord(event)" class="p-6 space-y-4">
+                <input type="hidden" id="editRecordId">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">紀錄日期</label>
+                    <input type="date" id="editRecordDate" required
+                        class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-blue-500 focus:bg-white">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">銀行帳戶</label>
+                    <select id="editRecordAccount" required
+                        class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-blue-500 focus:bg-white">
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">帳戶餘額 (NTD)</label>
+                    <div class="relative">
+                        <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-semibold text-sm">NT$</span>
+                        <input type="number" id="editRecordBalance" step="1" required
+                            class="w-full pl-12 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold tabular-nums focus:outline-none focus:border-blue-500 focus:bg-white">
+                    </div>
+                </div>
+                <div class="pt-3 flex items-center justify-end gap-2 border-t border-slate-100">
+                    <button type="button" onclick="closeEditRecordModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer">
+                        取消
+                    </button>
+                    <button type="submit" class="px-5 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs cursor-pointer">
+                        更新紀錄
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal 3：通用確認視窗 (取代 native confirm) -->
+    <div id="confirmModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
+        <div class="bg-white rounded-2xl max-w-sm w-full shadow-xl border border-slate-100 p-6">
+            <div class="flex items-center gap-3 mb-3">
+                <div id="confirmModalIconWrap" class="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                    <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+                </div>
+                <h3 id="confirmModalTitle" class="text-base font-bold text-slate-900">確認操作</h3>
+            </div>
+            <p id="confirmModalMessage" class="text-sm text-slate-600 leading-relaxed mb-5"></p>
+            <div class="flex items-center justify-end gap-2">
+                <button onclick="closeConfirmModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer">
+                    取消
+                </button>
+                <button id="confirmModalBtn" class="px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl cursor-pointer">
+                    確定執行
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 1. 常數與初始狀態定義
+        // ==========================================
+        const STORAGE_KEYS = {
+            ACCOUNTS: 'seven_banks_accounts_v1',
+            RECORDS: 'seven_banks_records_v1',
+            SELECTED_IDS: 'seven_banks_selected_ids_v1'
+        };
+
+        // 七個預設帳戶與高辨識度專屬色系
+        const DEFAULT_ACCOUNTS = [
+            { id: 'acc_1', name: '國泰世華 (薪轉)', color: '#3B82F6', bgLight: '#EFF6FF', textDark: '#1D4ED8' }, // 藍
+            { id: 'acc_2', name: '台新 Richart',    color: '#10B981', bgLight: '#ECFDF5', textDark: '#047857' }, // 綠
+            { id: 'acc_3', name: '玉山銀行',        color: '#F59E0B', bgLight: '#FFFBEB', textDark: '#B45309' }, // 琥珀
+            { id: 'acc_4', name: '中國信託',        color: '#EF4444', bgLight: '#FEF2F2', textDark: '#B91C1C' }, // 紅
+            { id: 'acc_5', name: '永豐大戶 DAWHO',  color: '#8B5CF6', bgLight: '#F5F3FF', textDark: '#6D28D9' }, // 紫
+            { id: 'acc_6', name: '將來銀行',        color: '#EC4899', bgLight: '#FDF2F8', textDark: '#BE185D' }, // 粉紅
+            { id: 'acc_7', name: '中華郵政 (定存)', color: '#06B6D4', bgLight: '#ECFEFF', textDark: '#0E7490' }  // 青色
+        ];
+
+        // 擴充調色盤（新增帳戶時自動挑選不重複的鮮明顏色）
+        const COLOR_PALETTE = [
+            '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4',
+            '#F97316', '#14B8A6', '#6366F1', '#84CC16', '#E11D48', '#0EA5E9', '#D946EF',
+            '#059669', '#D97706', '#7C3AED', '#2563EB'
+        ];
+
+        let accounts = [];
+        let records = [];
+        let selectedAccountIds = new Set();
+        let currentDashboardMonth = getTodayMonthStr();
+        let chartMode = 'stacked'; // 'stacked' 或 'grouped'
+        let barChartInstance = null;
+        let pendingConfirmAction = null;
+        let draftAccounts = []; // 帳戶管理 Modal 內的暫存編輯清單
+
+        // 根據十六進位主色自動產生淺色背景與深色文字（相容任何自訂顏色）
+        function buildColorStyles(hexColor) {
+            const cleanHex = /^#[0-9A-Fa-f]{6}$/.test(hexColor) ? hexColor : '#3B82F6';
+            const r = parseInt(cleanHex.slice(1, 3), 16);
+            const g = parseInt(cleanHex.slice(3, 5), 16);
+            const b = parseInt(cleanHex.slice(5, 7), 16);
+            return {
+                color: cleanHex,
+                bgLight: `rgba(${r}, ${g}, ${b}, 0.11)`,
+                textDark: cleanHex
+            };
+        }
+
+        function getNextAvailableColor(existingList) {
+            const usedColors = new Set(existingList.map(a => a.color.toUpperCase()));
+            const unused = COLOR_PALETTE.find(c => !usedColors.has(c.toUpperCase()));
+            return unused || COLOR_PALETTE[existingList.length % COLOR_PALETTE.length];
+        }
+
+        // ==========================================
+        // 2. 初始化與資料持久化 (LocalStorage)
+        // ==========================================
+        window.addEventListener('DOMContentLoaded', () => {
+            loadStateFromStorage();
+            initFormDefaults();
+            renderAll();
+            lucide.createIcons();
+
+            // 點擊外部關閉資料管理下拉選單
+            document.addEventListener('click', (e) => {
+                const container = document.getElementById('dataMenuContainer');
+                const dropdown = document.getElementById('dataMenuDropdown');
+                if (container && !container.contains(e.target)) {
+                    dropdown.classList.add('hidden');
+                }
+            });
+        });
+
+        function loadStateFromStorage() {
+            try {
+                const savedAccounts = localStorage.getItem(STORAGE_KEYS.ACCOUNTS);
+                accounts = savedAccounts ? JSON.parse(savedAccounts) : JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS));
+
+                const savedRecords = localStorage.getItem(STORAGE_KEYS.RECORDS);
+                if (savedRecords) {
+                    records = JSON.parse(savedRecords);
+                } else {
+                    // 首次開啟自動載入精選範例資料，讓畫面立即豐富可互動
+                    records = generateInitialSampleRecords();
+                    saveRecordsToStorage();
+                }
+
+                const savedSelected = localStorage.getItem(STORAGE_KEYS.SELECTED_IDS);
+                if (savedSelected) {
+                    selectedAccountIds = new Set(JSON.parse(savedSelected));
+                } else {
+                    selectedAccountIds = new Set(accounts.map(a => a.id));
+                }
+
+                // 若有紀錄，預設將儀表板月份設為最新一筆紀錄的月份（若當月無資料時更直覺）
+                if (records.length > 0) {
+                    const sorted = [...records].sort((a, b) => b.date.localeCompare(a.date));
+                    const latestRecordMonth = sorted[0].date.slice(0, 7);
+                    const hasCurrentMonthData = records.some(r => r.date.startsWith(currentDashboardMonth));
+                    if (!hasCurrentMonthData) {
+                        currentDashboardMonth = latestRecordMonth;
+                    }
+                }
+            } catch (err) {
+                console.error('讀取本機資料失敗:', err);
+                accounts = JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS));
+                records = [];
+                selectedAccountIds = new Set(accounts.map(a => a.id));
+            }
+        }
+
+        function saveAccountsToStorage() {
+            localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(accounts));
+        }
+
+        function saveRecordsToStorage() {
+            localStorage.setItem(STORAGE_KEYS.RECORDS, JSON.stringify(records));
+        }
+
+        function saveSelectedIdsToStorage() {
+            localStorage.setItem(STORAGE_KEYS.SELECTED_IDS, JSON.stringify([...selectedAccountIds]));
+        }
+
+        function initFormDefaults() {
+            document.getElementById('inputDate').value = getTodayDateStr();
+            document.getElementById('dashboardMonthPicker').value = currentDashboardMonth;
+        }
+
+        // ==========================================
+        // 3. 日期與金額格式化工具函式
+        // ==========================================
+        function getTodayDateStr() {
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const d = String(now.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        function getTodayMonthStr() {
+            return getTodayDateStr().slice(0, 7);
+        }
+
+        function formatCurrency(amount) {
+            if (amount === null || amount === undefined || isNaN(amount)) return 'NT$ 0';
+            return 'NT$ ' + Math.round(amount).toLocaleString('zh-TW');
+        }
+
+        function formatCompactCurrency(amount) {
+            if (Math.abs(amount) >= 10000) {
+                const wan = (amount / 10000).toFixed(1).replace(/\.0$/, '');
+                return `${wan}萬`;
+            }
+            return amount.toLocaleString('zh-TW');
+        }
+
+        function getAccountById(id) {
+            const found = accounts.find(a => a.id === id);
+            if (found) {
+                const styles = buildColorStyles(found.color);
+                return { ...found, ...styles };
+            }
+            return { id, name: '已刪除帳戶', color: '#94A3B8', bgLight: '#F1F5F9', textDark: '#475569' };
+        }
+
+        // ==========================================
+        // 4. 核心計算邏輯：取得指定月份各帳戶最後一筆餘額
+        // ==========================================
+        // 渲染頂部帳戶彩色核取按鈕
+        function renderAccountFilterChips() {
+            const container = document.getElementById('accountFilterChips');
+            if (accounts.length === 0) {
+                container.innerHTML = `<div class="col-span-full text-center py-4 text-xs text-slate-400">尚未建立任何銀行帳戶，請點擊右上角「帳戶管理」新增。</div>`;
+                document.getElementById('selectedCountBadge').textContent = `已選 0 / 0 個帳戶`;
+                return;
+            }
+
+            container.innerHTML = accounts.map(rawAcc => {
+                const acc = getAccountById(rawAcc.id);
+                const isSelected = selectedAccountIds.has(acc.id);
+                return `
+                    <button type="button" onclick="toggleAccountSelection('${acc.id}')"
+                        style="${isSelected ? `border-color: ${acc.color}; background-color: ${acc.bgLight};` : ''}"
+                        class="account-chip group relative flex items-center gap-2.5 p-2.5 sm:p-3 rounded-xl border text-left transition-all cursor-pointer select-none
+                        ${isSelected ? 'shadow-xs' : 'border-slate-200 bg-slate-50/70 opacity-65 hover:opacity-100'}">
+                        
+                        <!-- 自訂彩色 Checkbox -->
+                        <span style="background-color: ${isSelected ? acc.color : '#ffffff'}; border-color: ${isSelected ? acc.color : '#cbd5e1'};"
+                            class="w-4 h-4 rounded-md border flex items-center justify-center shrink-0 transition-colors">
+                            ${isSelected ? `<svg class="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>` : ''}
+                        </span>
+
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full shrink-0" style="background-color: ${acc.color}"></span>
+                                <span class="text-xs sm:text-[13px] font-semibold truncate ${isSelected ? 'text-slate-900' : 'text-slate-600'}">
+                                    ${acc.name}
+                                </span>
+                            </div>
+                        </div>
+                    </button>
+                `;
+            }).join('');
+
+            // 僅計算仍存在於 accounts 清單中的已勾選數量
+            const validSelectedCount = accounts.filter(a => selectedAccountIds.has(a.id)).length;
+            document.getElementById('selectedCountBadge').textContent = `已選 ${validSelectedCount} / ${accounts.length} 個帳戶`;
+        }
+
+        // 取得所有有紀錄的月份（升冪排列，供圖表使用）
+        function getAllDistinctMonthsAsc() {
+            const monthSet = new Set(records.map(r => r.date.slice(0, 7)));
+            return [...monthSet].sort((a, b) => a.localeCompare(b));
+        }
+
+        // ==========================================
+        // 5. 畫面渲染主流程
+        // ==========================================
+        function renderAll() {
+            populateAccountDropdowns();
+            renderAccountFilterChips();
+            renderMonthlyLatestCards();
+            updateSelectedTotalSummary();
+            renderBarChart();
+            populateTableMonthFilter();
+            renderRecordsTable();
+            document.getElementById('totalRecordsCount').textContent = records.length;
+            lucide.createIcons();
+        }
+
+        // 渲染表單與篩選器的銀行下拉選單
+        function populateAccountDropdowns() {
+            const inputSelect = document.getElementById('inputAccount');
+            const editSelect = document.getElementById('editRecordAccount');
+            const filterSelect = document.getElementById('tableFilterAccount');
+
+            const currentInputVal = inputSelect.value;
+            const currentFilterVal = filterSelect.value;
+
+            inputSelect.innerHTML = accounts.map(acc => 
+                `<option value="${acc.id}">${acc.name}</option>`
+            ).join('');
+
+            editSelect.innerHTML = accounts.map(acc => 
+                `<option value="${acc.id}">${acc.name}</option>`
+            ).join('');
+
+            filterSelect.innerHTML = `<option value="all">全部銀行帳戶</option>` + 
+                accounts.map(acc => `<option value="${acc.id}">${acc.name}</option>`).join('');
+
+            if (currentInputVal && accounts.some(a => a.id === currentInputVal)) {
+                inputSelect.value = currentInputVal;
+            }
+            if (currentFilterVal && (currentFilterVal === 'all' || accounts.some(a => a.id === currentFilterVal))) {
+                filterSelect.value = currentFilterVal;
+            }
+
+            updateSelectColorIndicator();
+        }
+
+        function updateSelectColorIndicator() {
+            const select = document.getElementById('inputAccount');
+            const dot = document.getElementById('selectColorDot');
+            const acc = getAccountById(select.value);
+            if (acc && dot) {
+                dot.style.backgroundColor = acc.color;
+            }
+        }
+
+        // 渲染頂部 7 個帳戶彩色核取按鈕
+        function renderAccountFilterChips() {
+            const container = document.getElementById('accountFilterChips');
+            container.innerHTML = accounts.map(acc => {
+                const isSelected = selectedAccountIds.has(acc.id);
+                return `
+                    <button type="button" onclick="toggleAccountSelection('${acc.id}')"
+                        style="${isSelected ? `border-color: ${acc.color}; background-color: ${acc.bgLight};` : ''}"
+                        class="account-chip group relative flex items-center gap-2.5 p-2.5 sm:p-3 rounded-xl border text-left transition-all cursor-pointer select-none
+                        ${isSelected ? 'shadow-xs' : 'border-slate-200 bg-slate-50/70 opacity-65 hover:opacity-100'}">
+                        
+                        <!-- 自訂彩色 Checkbox -->
+                        <span style="background-color: ${isSelected ? acc.color : '#ffffff'}; border-color: ${isSelected ? acc.color : '#cbd5e1'};"
+                            class="w-4 h-4 rounded-md border flex items-center justify-center shrink-0 transition-colors">
+                            ${isSelected ? `<svg class="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>` : ''}
+                        </span>
+
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full shrink-0" style="background-color: ${acc.color}"></span>
+                                <span class="text-xs sm:text-[13px] font-semibold truncate ${isSelected ? 'text-slate-900' : 'text-slate-600'}">
+                                    ${acc.name}
+                                </span>
+                            </div>
+                        </div>
+                    </button>
+                `;
+            }).join('');
+
+            document.getElementById('selectedCountBadge').textContent = `已選 ${selectedAccountIds.size} / ${accounts.length} 個帳戶`;
+        }
+
+        // 切換單一帳戶勾選狀態
+        function toggleAccountSelection(accountId) {
+            if (selectedAccountIds.has(accountId)) {
+                selectedAccountIds.delete(accountId);
+            } else {
+                selectedAccountIds.add(accountId);
+            }
+            saveSelectedIdsToStorage();
+            renderAccountFilterChips();
+            renderMonthlyLatestCards();
+            updateSelectedTotalSummary();
+            renderBarChart();
+        }
+
+        // 全選 / 取消全選
+        function selectAllAccounts(selectAll) {
+            if (selectAll) {
+                selectedAccountIds = new Set(accounts.map(a => a.id));
+            } else {
+                selectedAccountIds.clear();
+            }
+            saveSelectedIdsToStorage();
+            renderAccountFilterChips();
+            renderMonthlyLatestCards();
+            updateSelectedTotalSummary();
+            renderBarChart();
+        }
+
+        // 更新已選帳戶總餘額顯示
+        function updateSelectedTotalSummary() {
+            const latestMap = getLatestRecordsForMonth(currentDashboardMonth);
+            let total = 0;
+            selectedAccountIds.forEach(accId => {
+                const rec = latestMap[accId];
+                if (rec) {
+                    total += Number(rec.balance) || 0;
+                }
+            });
+
+            document.getElementById('summaryMonthLabel').textContent = currentDashboardMonth;
+            document.getElementById('selectedTotalAmount').textContent = formatCurrency(total);
+        }
+
+        // 渲染當月每個帳戶最後一筆金額卡片
+        function renderMonthlyLatestCards() {
+            const grid = document.getElementById('monthlyLatestGrid');
+            if (accounts.length === 0) {
+                grid.innerHTML = `<div class="col-span-full flex flex-col items-center justify-center py-10 text-slate-400 text-sm">尚無帳戶資料，請先於「帳戶管理」新增銀行帳戶</div>`;
+                return;
+            }
+
+            const latestMap = getLatestRecordsForMonth(currentDashboardMonth);
+
+            // 計算當月所有有紀錄帳戶的總和（用於計算佔比）
+            let monthAllTotal = 0;
+            Object.values(latestMap).forEach(rec => {
+                if (rec && rec.balance > 0) monthAllTotal += Number(rec.balance);
+            });
+
+            grid.innerHTML = accounts.map(rawAcc => {
+                const acc = getAccountById(rawAcc.id);
+                const rec = latestMap[acc.id];
+                const isSelected = selectedAccountIds.has(acc.id);
+                const hasRecord = rec !== null;
+                const percentage = (hasRecord && monthAllTotal > 0 && rec.balance > 0)
+                    ? Math.round((rec.balance / monthAllTotal) * 100)
+                    : 0;
+
+                return `
+                    <div onclick="toggleAccountSelection('${acc.id}')"
+                        style="border-left: 4px solid ${acc.color};"
+                        class="relative rounded-xl border border-slate-200/90 p-3.5 transition-all cursor-pointer hover:shadow-sm
+                        ${isSelected ? 'bg-white' : 'bg-slate-50/60 opacity-60'}">
+                        
+                        <div class="flex items-center justify-between gap-2 mb-2">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${acc.color}"></span>
+                                <span class="text-sm font-bold text-slate-800 truncate">${acc.name}</span>
+                            </div>
+                            ${isSelected 
+                                ? `<span class="text-[11px] font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 shrink-0">計入加總</span>`
+                                : `<span class="text-[11px] font-medium px-1.5 py-0.5 rounded bg-slate-200/70 text-slate-500 shrink-0">未勾選</span>`
+                            }
+                        </div>
+
+                        ${hasRecord ? `
+                            <div class="text-lg sm:text-xl font-bold text-slate-900 tabular-nums tracking-tight">
+                                ${formatCurrency(rec.balance)}
+                            </div>
+                            <div class="flex items-center justify-between mt-2 text-[11px] text-slate-400">
+                                <span>最新紀錄：${rec.date}</span>
+                                <span class="font-medium text-slate-500">${percentage}%</span>
+                            </div>
+                            <!-- 微型進度條 -->
+                            <div class="w-full h-1 bg-slate-100 rounded-full overflow-hidden mt-1.5">
+                                <div class="h-full rounded-full transition-all duration-300" style="width: ${percentage}%; background-color: ${acc.color}"></div>
+                            </div>
+                        ` : `
+                            <div class="py-2">
+                                <div class="text-sm font-medium text-slate-400">本月無紀錄</div>
+                                <div class="text-[11px] text-slate-400 mt-0.5">計為 NT$ 0</div>
+                            </div>
+                        `}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 月份切換控制
+        function onDashboardMonthChange(val) {
+            if (!val) return;
+            currentDashboardMonth = val;
+            renderMonthlyLatestCards();
+            updateSelectedTotalSummary();
+            renderRecordsTable();
+        }
+
+        function changeDashboardMonth(offset) {
+            const [y, m] = currentDashboardMonth.split('-').map(Number);
+            const date = new Date(y, m - 1 + offset, 1);
+            const newMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            currentDashboardMonth = newMonth;
+            document.getElementById('dashboardMonthPicker').value = newMonth;
+            renderMonthlyLatestCards();
+            updateSelectedTotalSummary();
+            renderRecordsTable();
+        }
+
+        // ==========================================
+        // 8. 銀行帳戶管理 Modal（修改名稱/顏色、新增、刪除、重置）
+        // ==========================================
+        function openAccountSettingsModal() {
+            // 複製一份暫存清單供編輯，按「儲存變更」才正式寫入
+            draftAccounts = accounts.map(a => ({ ...a }));
+            document.getElementById('newAccountNameInput').value = '';
+            document.getElementById('newAccountColorInput').value = getNextAvailableColor(draftAccounts);
+            renderDraftAccountsList();
+            document.getElementById('accountSettingsModal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeAccountSettingsModal() {
+            document.getElementById('accountSettingsModal').classList.add('hidden');
+            draftAccounts = [];
+        }
+
+        function renderDraftAccountsList() {
+            const container = document.getElementById('accountSettingsInputs');
+            document.getElementById('modalAccountCount').textContent = draftAccounts.length;
+
+            if (draftAccounts.length === 0) {
+                container.innerHTML = `<div class="text-center py-6 text-xs text-slate-400 border border-dashed border-slate-200 rounded-xl">目前清單為空，請從上方新增至少一個銀行帳戶</div>`;
+                return;
+            }
+
+            container.innerHTML = draftAccounts.map((acc, index) => {
+                const recordCount = records.filter(r => r.accountId === acc.id).length;
+                return `
+                    <div class="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50/80 border border-slate-200/70 hover:border-slate-300 transition-colors">
+                        <!-- 序號與自訂顏色選擇器 -->
+                        <label class="relative w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-xs cursor-pointer overflow-hidden"
+                            style="background-color: ${acc.color}" title="點擊更換代表色">
+                            <span>${index + 1}</span>
+                            <input type="color" value="${acc.color}"
+                                onchange="updateDraftAccountColor(${index}, this.value)"
+                                class="opacity-0 absolute inset-0 w-full h-full cursor-pointer">
+                        </label>
+
+                        <!-- 帳戶名稱輸入框 -->
+                        <input type="text" value="${acc.name.replace(/"/g, '&quot;')}" maxlength="24" required
+                            oninput="updateDraftAccountName(${index}, this.value)"
+                            placeholder="輸入銀行帳戶名稱"
+                            class="flex-1 min-w-0 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-800 focus:outline-none focus:border-blue-500">
+
+                        <!-- 紀錄筆數提示標籤 -->
+                        <span class="hidden sm:inline-block text-[11px] text-slate-400 shrink-0 px-1.5" title="此帳戶累積的歷史紀錄筆數">
+                            ${recordCount} 筆
+                        </span>
+
+                        <!-- 刪除按鈕 -->
+                        <button type="button" onclick="removeDraftAccount(${index})"
+                            class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors shrink-0 cursor-pointer"
+                            title="刪除此帳戶">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        function updateDraftAccountName(index, newName) {
+            if (draftAccounts[index]) {
+                draftAccounts[index].name = newName;
+            }
+        }
+
+        function updateDraftAccountColor(index, newColor) {
+            if (draftAccounts[index]) {
+                const styles = buildColorStyles(newColor);
+                draftAccounts[index] = { ...draftAccounts[index], ...styles };
+                renderDraftAccountsList();
+            }
+        }
+
+        function addNewAccountInModal() {
+            const nameInput = document.getElementById('newAccountNameInput');
+            const colorInput = document.getElementById('newAccountColorInput');
+            const name = nameInput.value.trim();
+
+            if (!name) {
+                showToast('請先輸入新銀行帳戶名稱', 'error');
+                nameInput.focus();
+                return;
+            }
+
+            const styles = buildColorStyles(colorInput.value);
+            const newAcc = {
+                id: 'acc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5),
+                name: name,
+                ...styles,
+                isNewlyCreated: true
+            };
+
+            draftAccounts.push(newAcc);
+            nameInput.value = '';
+            colorInput.value = getNextAvailableColor(draftAccounts);
+            renderDraftAccountsList();
+            showToast(`已加入「${name}」，記得點擊下方儲存變更`);
+        }
+
+        function removeDraftAccount(index) {
+            const target = draftAccounts[index];
+            if (!target) return;
+
+            if (draftAccounts.length <= 1) {
+                showToast('系統至少需保留一個銀行帳戶', 'error');
+                return;
+            }
+
+            const relatedRecordsCount = records.filter(r => r.accountId === target.id).length;
+            if (relatedRecordsCount > 0) {
+                openConfirmModal(
+                    `刪除「${target.name}」？`,
+                    `此帳戶目前有關聯的 ${relatedRecordsCount} 筆歷史餘額紀錄。移除此帳戶並儲存後，這些歷史紀錄也會一併清除，確定要移除嗎？`,
+                    'bg-red-600 hover:bg-red-700',
+                    () => {
+                        draftAccounts.splice(index, 1);
+                        renderDraftAccountsList();
+                    }
+                );
+            } else {
+                draftAccounts.splice(index, 1);
+                renderDraftAccountsList();
+            }
+        }
+
+        function confirmResetDefaultAccounts() {
+            openConfirmModal(
+                '恢復預設 7 個銀行帳戶？',
+                '這會將帳戶清單重置為預設的 7 個銀行帳戶與配色（不會刪除既有紀錄，但若紀錄屬於自訂新增的帳戶則會隱藏）。',
+                'bg-blue-600 hover:bg-blue-700',
+                () => {
+                    draftAccounts = JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS));
+                    document.getElementById('newAccountColorInput').value = getNextAvailableColor(draftAccounts);
+                    renderDraftAccountsList();
+                    showToast('已重置為預設 7 帳戶，請按儲存變更套用');
+                }
+            );
+        }
+
+        function saveAccountSettings(event) {
+            event.preventDefault();
+            if (draftAccounts.length === 0) {
+                showToast('請至少保留一個銀行帳戶', 'error');
+                return;
+            }
+
+            // 檢查是否有空白名稱
+            const hasEmpty = draftAccounts.some(a => !a.name || !a.name.trim());
+            if (hasEmpty) {
+                showToast('帳戶名稱不可為空白', 'error');
+                return;
+            }
+
+            // 整理最終帳戶清單，並自動將新建立的帳戶加入「已勾選加總」集合
+            const validIds = new Set();
+            accounts = draftAccounts.map(a => {
+                const cleanName = a.name.trim();
+                const styles = buildColorStyles(a.color);
+                validIds.add(a.id);
+                if (a.isNewlyCreated) {
+                    selectedAccountIds.add(a.id);
+                }
+                return {
+                    id: a.id,
+                    name: cleanName,
+                    ...styles
+                };
+            });
+
+            // 清理已不存在的帳戶勾選狀態與已刪除帳戶的孤兒紀錄
+            selectedAccountIds = new Set([...selectedAccountIds].filter(id => validIds.has(id)));
+            records = records.filter(r => validIds.has(r.accountId));
+
+            saveAccountsToStorage();
+            saveSelectedIdsToStorage();
+            saveRecordsToStorage();
+
+            closeAccountSettingsModal();
+            renderAll();
+            showToast(`帳戶設定已儲存（目前共 ${accounts.length} 個帳戶）`);
+        }
+
+        // ==========================================
+        // 9. 資料管理：範例資料、匯出 CSV / JSON、匯入與清空
+        // ==========================================
+        function toggleDataMenu() {
+            document.getElementById('dataMenuDropdown').classList.toggle('hidden');
+        }
+
+        function generateInitialSampleRecords() {
+            // 依據當前系統日期往前推算 6 個月產生真實感範例資料
+            const now = new Date();
+            const sampleRecords = [];
+            const baseBalances = [185000, 92000, 64000, 48000, 130000, 35000, 300000];
+            let ts = Date.now() - 1000000;
+
+            for (let i = 5; i >= 0; i--) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 25);
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dateStr = `${yyyy}-${mm}-25`;
+
+                DEFAULT_ACCOUNTS.forEach((acc, idx) => {
+                    // 模擬每月微幅成長與波動
+                    const growth = (5 - i) * (idx === 0 ? 12000 : idx === 6 ? 5000 : 3500);
+                    const wave = ((idx + i) % 3 - 1) * 4000;
+                    const amount = Math.max(5000, baseBalances[idx] + growth + wave);
+
+                    sampleRecords.push({
+                        id: `sample_${yyyy}${mm}_${acc.id}`,
+                        date: dateStr,
+                        accountId: acc.id,
+                        balance: amount,
+                        createdAt: ts++
+                    });
+                });
+            }
+            return sampleRecords;
+        }
+
+        function loadSampleDataPrompt() {
+            document.getElementById('dataMenuDropdown').classList.add('hidden');
+            openConfirmModal(
+                '載入 6 個月範例資料？',
+                '這將會覆蓋目前的歷史紀錄，並載入近 6 個月七個帳戶的完整模擬資料供您測試圖表與加總功能。',
+                'bg-blue-600 hover:bg-blue-700',
+                () => {
+                    records = generateInitialSampleRecords();
+                    saveRecordsToStorage();
+                    const latestMonth = records[records.length - 1].date.slice(0, 7);
+                    currentDashboardMonth = latestMonth;
+                    document.getElementById('dashboardMonthPicker').value = latestMonth;
+                    renderAll();
+                    showToast('已成功載入 6 個月範例資料');
+                }
+            );
+        }
+
+        function exportCSV() {
+            document.getElementById('dataMenuDropdown').classList.add('hidden');
+            if (records.length === 0) {
+                showToast('目前沒有資料可匯出', 'error');
+                return;
+            }
+
+            // 加入 UTF-8 BOM 確保 Excel 開啟繁體中文不亂碼
+            const BOM = '\uFEFF';
+            const headers = ['紀錄日期', '銀行名稱', '餘額(NTD)'];
+            const sorted = [...records].sort((a, b) => b.date.localeCompare(a.date));
+            const rows = sorted.map(r => {
+                const acc = getAccountById(r.accountId);
+                return `"${r.date}","${acc.name.replace(/"/g, '""')}",${r.balance}`;
+            });
+
+            const csvContent = BOM + [headers.join(','), ...rows].join('\n');
+            downloadBlob(csvContent, `銀行帳戶餘額明細_${getTodayDateStr()}.csv`, 'text/csv;charset=utf-8;');
+            showToast('CSV 報表已下載');
+        }
+
+        function exportJSON() {
+            document.getElementById('dataMenuDropdown').classList.add('hidden');
+            const backup = {
+                version: 1,
+                exportedAt: new Date().toISOString(),
+                accounts: accounts,
+                records: records
+            };
+            downloadBlob(JSON.stringify(backup, null, 2), `七帳戶資產備份_${getTodayDateStr()}.json`, 'application/json');
+            showToast('JSON 備份檔已下載');
+        }
+
+        function importJSON(event) {
+            document.getElementById('dataMenuDropdown').classList.add('hidden');
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (!Array.isArray(data.accounts) || !Array.isArray(data.records)) {
+                        throw new Error('檔案格式不符');
+                    }
+                    accounts = data.accounts;
+                    records = data.records;
+                    selectedAccountIds = new Set(accounts.map(a => a.id));
+                    saveAccountsToStorage();
+                    saveRecordsToStorage();
+                    saveSelectedIdsToStorage();
+                    renderAll();
+                    showToast(`成功匯入 ${records.length} 筆紀錄！`);
+                } catch (err) {
+                    showToast('匯入失敗：請確認選擇的是正確的 JSON 備份檔', 'error');
+                }
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        function confirmClearAllData() {
+            document.getElementById('dataMenuDropdown').classList.add('hidden');
+            openConfirmModal(
+                '清空所有歷史紀錄？',
+                '確定要刪除所有已輸入的銀行餘額紀錄嗎？（您的七個銀行帳戶名稱設定將會保留）。建議先匯出備份再執行。',
+                'bg-red-600 hover:bg-red-700',
+                () => {
+                    records = [];
+                    saveRecordsToStorage();
+                    renderAll();
+                    showToast('已清空所有餘額紀錄');
+                }
+            );
+        }
+
+        function downloadBlob(content, filename, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // ==========================================
+        // 10. 自訂對話框與 Toast 通知工具
+        // ==========================================
+        function openConfirmModal(title, message, btnClass, onConfirm) {
+            document.getElementById('confirmModalTitle').textContent = title;
+            document.getElementById('confirmModalMessage').textContent = message;
+            const btn = document.getElementById('confirmModalBtn');
+            btn.className = `px-4 py-2 text-sm font-semibold text-white rounded-xl cursor-pointer transition-colors ${btnClass}`;
+            pendingConfirmAction = onConfirm;
+
+            btn.onclick = () => {
+                if (pendingConfirmAction) pendingConfirmAction();
+                closeConfirmModal();
+            };
+
+            document.getElementById('confirmModal').classList.remove('hidden');
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirmModal').classList.add('hidden');
+            pendingConfirmAction = null;
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            const isError = type === 'error';
+
+            toast.className = `pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg text-sm font-medium text-white transition-all duration-300 transform translate-y-2 opacity-0 ${
+                isError ? 'bg-red-600' : 'bg-slate-900'
+            }`;
+            toast.innerHTML = `
+                <i data-lucide="${isError ? 'alert-circle' : 'check-circle-2'}" class="w-4 h-4 ${isError ? 'text-white' : 'text-emerald-400'} shrink-0"></i>
+                <span>${message}</span>
+            `;
+
+            container.appendChild(toast);
+            lucide.createIcons();
+
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            });
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 2800);
+        }
+    </script>
+</body>
+</html>
