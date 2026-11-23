@@ -65,7 +65,10 @@
     <section class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs">
       <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100">
         <div>
-          <h2 class="text-sm font-semibold text-slate-500">自選帳戶總餘額（依各帳戶最新一筆紀錄計算）</h2>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h2 class="text-sm font-semibold text-slate-500">自選帳戶總餘額（依各帳戶最新一筆紀錄計算）</h2>
+            <span id="selectedMonthBadge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">資料月份：--</span>
+          </div>
           <div class="flex items-baseline gap-3 mt-1">
             <span id="selectedTotalDisplay" class="text-2xl sm:text-3xl font-bold text-slate-900 tabular-nums">$0</span>
             <span id="selectedCountBadge" class="text-xs font-medium px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600">已選 0 個帳戶</span>
@@ -135,7 +138,6 @@
           </div>
         </div>
 
-        <!-- 新增功能 2 & 3：所選月份最後一筆餘額加總 + 減去自選帳戶總餘額 -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
           <div class="p-3.5 rounded-xl bg-slate-900 text-white flex flex-col justify-between">
             <div class="flex items-center justify-between gap-2">
@@ -209,7 +211,7 @@
     </section>
   </main>
 
-  <!-- Modal 1: 帳戶管理（新增、修改名稱、修改顏色、刪除） -->
+  <!-- Modal 1: 帳戶管理 -->
   <div id="accountModal" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-2xs flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl border border-slate-200 max-w-xl w-full max-h-[88vh] flex flex-col shadow-xl">
       <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
@@ -218,7 +220,6 @@
       </div>
 
       <div class="p-5 overflow-y-auto space-y-5">
-        <!-- 新增帳戶 -->
         <form id="addAccountForm" class="flex flex-col sm:flex-row gap-2.5 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
           <input id="newAccountColor" type="color" value="#0284c7" class="h-10 w-14 rounded-lg border border-slate-300 cursor-pointer bg-white p-0.5 shrink-0" title="選擇代表色" />
           <input id="newAccountName" type="text" required placeholder="輸入新銀行名稱（例如：永豐大戶）" class="flex-1 rounded-xl border border-slate-300 px-3.5 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-900" />
@@ -227,7 +228,6 @@
           </button>
         </form>
 
-        <!-- 既有帳戶清單 -->
         <div id="accountListEditor" class="space-y-2.5"></div>
       </div>
 
@@ -515,6 +515,20 @@
         container.appendChild(card);
       });
 
+      // 顯示是幾月的自選帳戶總餘額
+      const targetBanks = selectedBanks.size > 0 ? [...selectedBanks] : accounts.map(a => a.name);
+      let latestDateStr = '';
+      targetBanks.forEach(bankName => {
+        const latest = getLatestRecordForBank(bankName);
+        if (latest && latest.date && latest.date.localeCompare(latestDateStr) > 0) {
+          latestDateStr = latest.date;
+        }
+      });
+      const monthBadge = document.getElementById('selectedMonthBadge');
+      if (monthBadge) {
+        monthBadge.textContent = latestDateStr ? `資料月份：${latestDateStr.slice(0, 7)}` : '資料月份：尚無紀錄';
+      }
+
       currentTopSelectedTotal = total;
       document.getElementById('selectedTotalDisplay').textContent = formatCurrency(total);
       document.getElementById('selectedCountBadge').textContent = `已選 ${selectedBanks.size} / ${accounts.length} 個帳戶`;
@@ -707,7 +721,6 @@
       renderRecordsTable();
     }
 
-    // 紀錄表單事件
     document.getElementById('recordForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const editId = document.getElementById('editingRecordId').value;
@@ -758,7 +771,6 @@
 
     document.getElementById('btnCancelEdit').addEventListener('click', resetRecordForm);
 
-    // 帳戶管理 Modal
     const accountModal = document.getElementById('accountModal');
     document.getElementById('btnOpenAccountModal').addEventListener('click', () => {
       const usedColors = new Set(accounts.map(a => a.color.toLowerCase()));
@@ -865,7 +877,6 @@
       renderAccountListEditor();
     });
 
-    // Google Sheets Modal
     const sheetsModal = document.getElementById('sheetsModal');
     document.getElementById('btnOpenSheetsModal').addEventListener('click', () => {
       document.getElementById('gasUrlInput').value = gasUrl;
@@ -913,7 +924,6 @@
       await pullFromSheets(true);
     });
 
-    // 選取與篩選控制
     document.getElementById('btnSelectAll').addEventListener('click', () => {
       selectedBanks = new Set(accounts.map(a => a.name));
       saveLocal();
@@ -958,7 +968,6 @@
       renderChart();
     });
 
-    // 匯出與匯入
     document.getElementById('btnExportCsv').addEventListener('click', () => {
       const lines = ['\uFEFF紀錄日期,銀行名稱,餘額'];
       records.forEach(r => lines.push(`${r.date},"${String(r.bankName).replace(/"/g, '""')}",${r.balance}`));
@@ -1011,7 +1020,6 @@
       return String(str).replace(/"/g, '&quot;');
     }
 
-    // 啟動流程
     initState();
     renderAll();
     if (gasUrl) {
