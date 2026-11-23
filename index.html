@@ -251,7 +251,7 @@
     <div class="bg-white rounded-2xl border border-slate-200 max-w-xl w-full max-h-[88vh] flex flex-col shadow-xl">
       <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
         <h3 class="text-base font-bold text-slate-900">帳戶管理（新增 / 修改名稱 / 代表色）</h3>
-        <button id="btnCloseAccountModal" type="button" class="text-slate-400 hover:text-slate-700 text-xl leading-none">&times;</button>
+        <button id="btnCloseAccountModal" type="button" class="text-slate-400 hover:text-slate-700 text-xl leading-none">×</button>
       </div>
 
       <div class="p-5 overflow-y-auto space-y-5">
@@ -284,7 +284,7 @@
     <div class="bg-white rounded-2xl border border-slate-200 max-w-lg w-full shadow-xl overflow-hidden">
       <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
         <h3 class="text-base font-bold text-slate-900">Google Sheets 雲端同步設定</h3>
-        <button id="btnCloseSheetsModal" type="button" class="text-slate-400 hover:text-slate-700 text-xl leading-none">&times;</button>
+        <button id="btnCloseSheetsModal" type="button" class="text-slate-400 hover:text-slate-700 text-xl leading-none">×</button>
       </div>
 
       <div class="p-5 space-y-4">
@@ -791,7 +791,6 @@
       renderRecordsTable();
     }
 
-    // 頁面切換事件
     document.getElementById('tabDashboard').addEventListener('click', () => switchPage('dashboard'));
     document.getElementById('tabRecords').addEventListener('click', () => switchPage('records'));
     document.getElementById('btnJumpToRecordsPage').addEventListener('click', () => switchPage('records'));
@@ -1048,10 +1047,9 @@
     });
 
     document.getElementById('btnExportCsv').addEventListener('click', () => {
-      const lines = ['﻿紀錄日期,銀行名稱,餘額'];
+      const lines = ['\uFEFF紀錄日期,銀行名稱,餘額'];
       records.forEach(r => lines.push(`${r.date},"${String(r.bankName).replace(/"/g, '""')}",${r.balance}`));
-      downloadFile('bank_balance_records.csv', lines.join('
-'), 'text/csv;charset=utf-8;');
+      downloadFile('bank_balance_records.csv', lines.join('\n'), 'text/csv;charset=utf-8;');
     });
 
     document.getElementById('btnExportJson').addEventListener('click', () => {
@@ -1090,14 +1088,14 @@
 
     function escapeHtml(str) {
       return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+        .replace(/&/g, '&')
+        .replace(/</g, '<')
+        .replace(/>/g, '>')
+        .replace(/"/g, '"');
     }
 
     function escapeAttr(str) {
-      return String(str).replace(/"/g, '&quot;');
+      return String(str).replace(/"/g, '"');
     }
 
     initState();
