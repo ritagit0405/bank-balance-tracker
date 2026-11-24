@@ -4,11 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>每月銀行帳戶餘額追蹤與視覺化儀表板</title>
-  <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
-  <script src="[https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js](https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js)"></script>
-  <script src="[https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js](https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js)"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
-    @import url('[https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap](https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap)');
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap');
     body {
       font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
       background-color: #f8fafc;
@@ -28,6 +27,7 @@
   </style>
 </head>
 <body class="min-h-screen pb-14">
+  <!-- 頂部導覽列 -->
   <header class="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-16 py-2 flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center gap-3 min-w-0">
@@ -43,6 +43,7 @@
         </div>
       </div>
 
+      <!-- 頁面切換分頁 + 工具按鈕 -->
       <div class="flex flex-wrap items-center gap-2">
         <nav class="inline-flex rounded-xl bg-slate-100 p-1 mr-1" aria-label="頁面切換">
           <button id="tabDashboard" type="button" class="px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-lg bg-white text-slate-900 shadow-2xs transition">
@@ -71,7 +72,9 @@
   </header>
 
   <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
+    <!-- ==================== 頁面 1：總覽儀表板 ==================== -->
     <div id="pageDashboard" class="space-y-6">
+      <!-- 帳戶勾選與自選加總區 -->
       <section class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs">
         <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100">
           <div>
@@ -96,10 +99,13 @@
           </div>
         </div>
 
+        <!-- 彩色帳戶勾選卡片 -->
         <div id="accountChipsContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 pt-4"></div>
       </section>
 
+      <!-- 輸入表單 + 當月最新餘額快照 -->
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- 新增 / 編輯餘額紀錄 -->
         <section class="lg:col-span-4 bg-white rounded-2xl border border-slate-200 p-5 shadow-xs h-fit">
           <div class="flex items-center justify-between mb-4">
             <h2 id="formTitle" class="text-base font-bold text-slate-900">新增餘額紀錄</h2>
@@ -133,6 +139,7 @@
           </form>
         </section>
 
+        <!-- 當月每個帳戶最後一筆金額 -->
         <section class="lg:col-span-8 bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
             <div>
@@ -169,6 +176,7 @@
         </section>
       </div>
 
+      <!-- 每月帳戶餘額變化柱狀圖 -->
       <section class="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <div>
@@ -186,6 +194,7 @@
         </div>
       </section>
 
+      <!-- 快速前往獨立紀錄明細頁提示條 -->
       <div class="bg-white rounded-2xl border border-slate-200 px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
         <div class="text-xs sm:text-sm text-slate-600">
           想查看、篩選、編輯或刪除完整的歷史輸入紀錄？已移至獨立頁面方便閱讀。
@@ -196,6 +205,7 @@
       </div>
     </div>
 
+    <!-- ==================== 頁面 2：所有輸入紀錄明細 ==================== -->
     <div id="pageRecords" class="hidden space-y-6">
       <section class="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-4 border-b border-slate-100 mb-4">
@@ -236,11 +246,12 @@
     </div>
   </main>
 
+  <!-- Modal 1: 帳戶管理（新增、修改名稱、代表色、刪除） -->
   <div id="accountModal" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-2xs flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl border border-slate-200 max-w-xl w-full max-h-[88vh] flex flex-col shadow-xl">
       <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
         <h3 class="text-base font-bold text-slate-900">帳戶管理（新增 / 修改名稱 / 代表色）</h3>
-        <button id="btnCloseAccountModal" type="button" class="text-slate-400 hover:text-slate-700 text-xl leading-none">&times;</button>
+        <button id="btnCloseAccountModal" type="button" class="text-slate-400 hover:text-slate-700 text-xl leading-none">×</button>
       </div>
 
       <div class="p-5 overflow-y-auto space-y-5">
@@ -268,11 +279,12 @@
     </div>
   </div>
 
+  <!-- Modal 2: Google Sheets 雲端同步設定 -->
   <div id="sheetsModal" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-2xs flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl border border-slate-200 max-w-lg w-full shadow-xl overflow-hidden">
       <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
         <h3 class="text-base font-bold text-slate-900">Google Sheets 雲端同步設定</h3>
-        <button id="btnCloseSheetsModal" type="button" class="text-slate-400 hover:text-slate-700 text-xl leading-none">&times;</button>
+        <button id="btnCloseSheetsModal" type="button" class="text-slate-400 hover:text-slate-700 text-xl leading-none">×</button>
       </div>
 
       <div class="p-5 space-y-4">
@@ -282,7 +294,7 @@
 
         <div>
           <label for="gasUrlInput" class="block text-xs font-semibold text-slate-700 mb-1.5">Google Apps Script Web App 網址（/exec）</label>
-          <input id="gasUrlInput" type="url" placeholder="[https://script.google.com/macros/s/.../exec](https://script.google.com/macros/s/.../exec)" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600" />
+          <input id="gasUrlInput" type="url" placeholder="https://script.google.com/macros/s/.../exec" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600" />
         </div>
 
         <div class="flex items-center justify-between pt-2 gap-2">
@@ -672,23 +684,11 @@
       updateSnapshotSummary(ym);
     }
 
-    function formatCompactAmount(num) {
-      const n = Number(num) || 0;
-      return '$' + Math.round(n).toLocaleString('zh-TW');
-    }
-
     function renderChart() {
       if (activePage !== 'dashboard') return;
       const ctx = document.getElementById('balanceChartCanvas').getContext('2d');
       const months = getAllMonths();
       const activeAccounts = accounts.filter(a => selectedBanks.has(a.name));
-
-      const monthTotals = months.map((_ym, mIdx) => {
-        return activeAccounts.reduce((sum, acc) => {
-          const rec = getLatestRecordForBank(acc.name, months[mIdx]);
-          return sum + (rec ? Number(rec.balance) || 0 : 0);
-        }, 0);
-      });
 
       const datasets = activeAccounts.map(acc => {
         const data = months.map(ym => {
@@ -705,28 +705,12 @@
 
       if (balanceChart) balanceChart.destroy();
 
-      const topDatasetIndexByMonth = months.map((_ym, mIdx) => {
-        let lastNonZeroIdx = -1;
-        datasets.forEach((ds, dIdx) => {
-          if ((Number(ds.data[mIdx]) || 0) !== 0) {
-            lastNonZeroIdx = dIdx;
-          }
-        });
-        return lastNonZeroIdx;
-      });
-
       balanceChart = new Chart(ctx, {
         type: 'bar',
         data: { labels: months, datasets },
-        plugins: [ChartDataLabels],
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          layout: {
-            padding: {
-              top: 28
-            }
-          },
           onClick: (_evt, elements) => {
             if (elements && elements.length > 0) {
               const idx = elements[0].index;
@@ -739,36 +723,9 @@
           },
           plugins: {
             legend: { position: 'bottom' },
-            datalabels: {
-              anchor: 'end',
-              align: 'top',
-              offset: 2,
-              clamp: true,
-              font: {
-                weight: 'bold',
-                size: 11
-              },
-              color: '#0f172a',
-              formatter: (value, context) => {
-                const mIdx = context.dataIndex;
-                if (chartMode === 'stacked') {
-                  if (context.datasetIndex !== topDatasetIndexByMonth[mIdx]) return '';
-                  const total = monthTotals[mIdx] || 0;
-                  return total !== 0 ? formatCompactAmount(total) : '';
-                } else {
-                  const val = Number(value) || 0;
-                  return val !== 0 ? formatCompactAmount(val) : '';
-                }
-              }
-            },
             tooltip: {
               callbacks: {
-                label: (context) => `${context.dataset.label}：${formatCurrency(context.parsed.y)}`,
-                afterBody: (items) => {
-                  if (!items || !items.length) return '';
-                  const mIdx = items[0].dataIndex;
-                  return `當月勾選帳戶總計：${formatCurrency(monthTotals[mIdx] || 0)}`;
-                }
+                label: (context) => `${context.dataset.label}：${formatCurrency(context.parsed.y)}`
               }
             }
           },
@@ -776,7 +733,6 @@
             x: { stacked: chartMode === 'stacked', grid: { display: false } },
             y: {
               stacked: chartMode === 'stacked',
-              grace: '12%',
               ticks: {
                 callback: (val) => Number(val).toLocaleString('zh-TW')
               }
@@ -1132,14 +1088,14 @@
 
     function escapeHtml(str) {
       return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+        .replace(/&/g, '&')
+        .replace(/</g, '<')
+        .replace(/>/g, '>')
+        .replace(/"/g, '"');
     }
 
     function escapeAttr(str) {
-      return String(str).replace(/"/g, '&quot;');
+      return String(str).replace(/"/g, '"');
     }
 
     initState();
