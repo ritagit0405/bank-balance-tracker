@@ -4,19 +4,60 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>每月銀行帳戶餘額追蹤與視覺化儀表板</title>
-  <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
-  <script src="[https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js](https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js)"></script>
-  <script src="[https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js](https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js)"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <style>
-    @import url('[https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap](https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap)');
-    body {
-      font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
-      background-color: #f8fafc;
-      color: #0f172a;
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap');
+
+    :root {
+      --bg-page: #f8fafc;
+      --bg-card: #ffffff;
+      --bg-subtle: #f1f5f9;
+      --bg-soft: #f8fafc;
+      --text-main: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+      --border-light: #e2e8f0;
+      --border-input: #cbd5e1;
+      --primary: #0f172a;
+      --primary-hover: #1e293b;
+      --accent-blue: #2563eb;
+      --accent-emerald: #059669;
+      --accent-rose: #e11d48;
+      --radius-lg: 16px;
+      --radius-md: 12px;
+      --radius-sm: 8px;
+      --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04);
+      --shadow-modal: 0 20px 25px -5px rgba(15, 23, 42, 0.12), 0 8px 10px -6px rgba(15, 23, 42, 0.08);
     }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: var(--bg-page);
+      color: var(--text-main);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      min-height: 100vh;
+      padding-bottom: 56px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
     .tabular-nums {
       font-variant-numeric: tabular-nums;
     }
+
     ::-webkit-scrollbar {
       width: 6px;
       height: 6px;
@@ -25,271 +66,1285 @@
       background: #cbd5e1;
       border-radius: 9999px;
     }
+
+    /* 頂部導覽列 */
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .header-inner {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 10px 16px;
+      min-height: 64px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .brand-badge {
+      width: 36px;
+      height: 36px;
+      border-radius: 12px;
+      background: var(--primary);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .brand-title-wrap {
+      min-width: 0;
+    }
+
+    .site-title {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sync-status-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .status-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 9999px;
+      background: #94a3b8;
+      flex-shrink: 0;
+    }
+    .status-dot.bg-emerald-500 { background: #10b981; }
+    .status-dot.bg-amber-500 { background: #f59e0b; }
+    .status-dot.bg-rose-500 { background: #f43f5e; }
+    .status-dot.bg-slate-400 { background: #94a3b8; }
+    .status-dot.animate-pulse { animation: pulseDot 1.4s infinite; }
+
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.35; }
+    }
+
+    .header-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .seg-group {
+      display: inline-flex;
+      align-items: center;
+      background: var(--bg-subtle);
+      padding: 4px;
+      border-radius: 12px;
+      gap: 2px;
+    }
+
+    .nav-tab, .seg-btn {
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .nav-tab:hover, .seg-btn:hover {
+      color: var(--text-main);
+    }
+
+    .nav-tab.is-active, .seg-btn.is-active {
+      background: #ffffff;
+      color: var(--text-main);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+    }
+
+    .count-pill {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: 9999px;
+      background: #e2e8f0;
+      color: #334155;
+    }
+
+    /* 通用按鈕與表單元件 */
+    .btn {
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 10px;
+      padding: 8px 12px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .btn-sm {
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 8px;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #ffffff;
+    }
+    .btn-primary:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn-outline {
+      background: #ffffff;
+      color: #334155;
+      border-color: #cbd5e1;
+    }
+    .btn-outline:hover {
+      background: #f8fafc;
+    }
+
+    .btn-soft {
+      background: var(--bg-subtle);
+      color: #334155;
+    }
+    .btn-soft:hover {
+      background: #e2e8f0;
+    }
+
+    .btn-emerald {
+      background: #ecfdf5;
+      color: #065f46;
+      border-color: #a7f3d0;
+    }
+    .btn-emerald:hover {
+      background: #d1fae5;
+    }
+
+    .btn-emerald-solid {
+      background: var(--accent-emerald);
+      color: #ffffff;
+    }
+    .btn-emerald-solid:hover {
+      background: #047857;
+    }
+
+    .btn-danger-ghost {
+      background: transparent;
+      color: var(--accent-rose);
+      border-color: transparent;
+    }
+    .btn-danger-ghost:hover {
+      background: #fff1f2;
+    }
+
+    .field-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .field-input, .field-select {
+      width: 100%;
+      font-family: inherit;
+      font-size: 14px;
+      color: var(--text-main);
+      background: #ffffff;
+      border: 1px solid var(--border-input);
+      border-radius: 12px;
+      padding: 10px 14px;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .field-select-sm {
+      width: auto;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-main);
+      background: #ffffff;
+      border: 1px solid var(--border-input);
+      border-radius: 10px;
+      padding: 6px 10px;
+      outline: none;
+    }
+
+    .field-input:focus, .field-select:focus, .field-select-sm:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.12);
+    }
+
+    /* 主內容區 */
+    .main-container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 24px 16px 0;
+    }
+
+    .page-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      box-shadow: var(--shadow-card);
+    }
+
+    /* 頂部自選總餘額區 */
+    .summary-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+
+    .summary-title-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .summary-sub-label {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .month-badge {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 2px 10px;
+      border-radius: 9999px;
+      background: #eff6ff;
+      color: #1d4ed8;
+      border: 1px solid #bfdbfe;
+    }
+
+    .summary-amount-row {
+      display: flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 6px;
+    }
+
+    .hero-total {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text-main);
+      line-height: 1.2;
+    }
+
+    .count-badge {
+      font-size: 12px;
+      font-weight: 500;
+      padding: 3px 10px;
+      border-radius: 9999px;
+      background: var(--bg-subtle);
+      color: var(--text-secondary);
+    }
+
+    .toolbar-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* 帳戶勾選卡片網格 */
+    .chips-grid {
+      display: grid;
+      grid-template-columns: repeat(1, minmax(0, 1fr));
+      gap: 12px;
+      padding-top: 16px;
+    }
+
+    @media (min-width: 640px) {
+      .chips-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (min-width: 768px) {
+      .chips-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+
+    @media (min-width: 1024px) {
+      .chips-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+    }
+
+    .account-chip-card {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border-light);
+      background: #ffffff;
+      font-family: inherit;
+      text-align: left;
+      cursor: pointer;
+      transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+    }
+
+    .account-chip-card.is-checked {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+
+    .account-chip-card.is-unchecked {
+      opacity: 0.58;
+    }
+
+    .account-chip-card.is-unchecked:hover {
+      opacity: 0.88;
+    }
+
+    .chip-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .chip-checkbox {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--primary);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .color-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 9999px;
+      flex-shrink: 0;
+    }
+
+    .color-dot-sm {
+      width: 10px;
+      height: 10px;
+      border-radius: 9999px;
+      flex-shrink: 0;
+    }
+
+    .chip-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1e293b;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .chip-balance {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-main);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* 中段雙欄（表單 + 當月快照） */
+    .mid-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    @media (min-width: 1024px) {
+      .mid-grid {
+        grid-template-columns: 4fr 8fr;
+      }
+    }
+
+    .card-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .card-title {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .card-desc {
+      margin: 4px 0 0;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .form-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .label-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .link-btn {
+      border: none;
+      background: transparent;
+      padding: 0;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent-blue);
+      cursor: pointer;
+    }
+
+    .link-btn:hover {
+      text-decoration: underline;
+    }
+
+    .link-muted {
+      border: none;
+      background: transparent;
+      padding: 0;
+      font-family: inherit;
+      font-size: 12px;
+      color: var(--text-muted);
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
+    .link-muted:hover {
+      color: var(--text-main);
+    }
+
+    /* 當月快照區 */
+    .snapshot-top-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .snapshot-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .snapshot-summary-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    @media (min-width: 640px) {
+      .snapshot-summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    .snap-dark-box {
+      background: var(--primary);
+      color: #ffffff;
+      border-radius: 12px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .snap-dark-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .snap-dark-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: #cbd5e1;
+    }
+
+    .snap-dark-pill {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, 0.16);
+      color: #f8fafc;
+    }
+
+    .snap-dark-value {
+      font-size: 22px;
+      font-weight: 700;
+      margin-top: 8px;
+    }
+
+    .snap-diff-box {
+      background: #f8fafc;
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .snap-diff-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .snap-diff-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .snap-diff-ref {
+      font-size: 11px;
+      color: #94a3b8;
+    }
+
+    .snap-diff-value {
+      font-size: 22px;
+      font-weight: 700;
+      margin-top: 8px;
+      color: var(--text-main);
+    }
+    .snap-diff-value.diff-pos { color: #059669; }
+    .snap-diff-value.diff-neg { color: #e11d48; }
+    .snap-diff-value.diff-zero { color: var(--text-main); }
+
+    .snapshot-items-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    @media (min-width: 640px) {
+      .snapshot-items-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (min-width: 1280px) {
+      .snapshot-items-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+
+    .snap-item-card {
+      padding: 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border-light);
+      background: #ffffff;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 8px;
+      transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+    }
+
+    .snap-item-card.is-checked {
+      background: rgba(248, 250, 252, 0.9);
+      border-color: #cbd5e1;
+    }
+
+    .snap-item-card.is-unchecked {
+      opacity: 0.58;
+    }
+
+    .snap-item-card.is-unchecked:hover {
+      opacity: 0.88;
+    }
+
+    .snap-item-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .snap-item-date {
+      font-size: 11px;
+      color: #94a3b8;
+      flex-shrink: 0;
+    }
+
+    .snap-item-amount {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-main);
+      padding-left: 26px;
+    }
+
+    .snap-item-empty {
+      font-size: 13px;
+      font-weight: 400;
+      color: #94a3b8;
+    }
+
+    /* 圖表區 */
+    .chart-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .chart-box {
+      position: relative;
+      height: 300px;
+      width: 100%;
+    }
+
+    @media (min-width: 640px) {
+      .chart-box {
+        height: 330px;
+      }
+    }
+
+    /* 跳轉紀錄頁提示條 */
+    .jump-banner {
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      box-shadow: var(--shadow-card);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .jump-banner-text {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    /* 紀錄明細頁與表格 */
+    .records-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #f1f5f9;
+      margin-bottom: 16px;
+    }
+
+    .records-title-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    .records-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    .records-table thead tr {
+      border-bottom: 1px solid var(--border-light);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .records-table th {
+      padding: 12px;
+    }
+
+    .records-table tbody tr {
+      border-bottom: 1px solid #f1f5f9;
+      font-size: 14px;
+      transition: background-color 0.12s ease;
+    }
+
+    .records-table tbody tr:hover {
+      background: rgba(248, 250, 252, 0.85);
+    }
+
+    .records-table td {
+      padding: 12px;
+    }
+
+    .th-right, .td-right {
+      text-align: right;
+    }
+
+    .td-nowrap {
+      white-space: nowrap;
+    }
+
+    .bank-inline {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      color: #1e293b;
+    }
+
+    .action-link-edit {
+      border: none;
+      background: transparent;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--accent-blue);
+      cursor: pointer;
+      padding: 2px 4px;
+    }
+    .action-link-edit:hover {
+      text-decoration: underline;
+    }
+
+    .action-link-del {
+      border: none;
+      background: transparent;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--accent-rose);
+      cursor: pointer;
+      padding: 2px 4px;
+    }
+    .action-link-del:hover {
+      text-decoration: underline;
+    }
+
+    .empty-cell {
+      padding: 32px 12px !important;
+      text-align: center;
+      color: #94a3b8;
+    }
+
+    /* 彈窗 Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      background: rgba(15, 23, 42, 0.5);
+      backdrop-filter: blur(2px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .modal-panel {
+      background: #ffffff;
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      width: 100%;
+      max-width: 576px;
+      max-height: 88vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-modal);
+      overflow: hidden;
+    }
+
+    .modal-panel-sm {
+      max-width: 512px;
+    }
+
+    .modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-light);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .modal-title {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .modal-close {
+      border: none;
+      background: transparent;
+      color: #94a3b8;
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0 4px;
+    }
+    .modal-close:hover {
+      color: #334155;
+    }
+
+    .modal-body {
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .add-account-box {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      background: #f8fafc;
+      padding: 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border-light);
+    }
+
+    .color-picker-lg {
+      height: 40px;
+      width: 54px;
+      border-radius: 8px;
+      border: 1px solid var(--border-input);
+      background: #ffffff;
+      padding: 2px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .color-picker-sm {
+      height: 36px;
+      width: 46px;
+      border-radius: 8px;
+      border: 1px solid var(--border-light);
+      background: #ffffff;
+      padding: 2px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .add-account-input {
+      flex: 1;
+      min-width: 180px;
+    }
+
+    .account-editor-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .account-editor-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px solid var(--border-light);
+      background: #ffffff;
+    }
+
+    .account-editor-name {
+      flex: 1;
+      min-width: 0;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-main);
+      border: 1px solid var(--border-input);
+      border-radius: 8px;
+      padding: 6px 10px;
+      outline: none;
+    }
+
+    .account-editor-name:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.12);
+    }
+
+    .modal-footer {
+      padding: 14px 20px;
+      border-top: 1px solid var(--border-light);
+      background: #f8fafc;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .sheets-help-text {
+      margin: 0;
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    .inline-code {
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: var(--bg-subtle);
+      color: #1e293b;
+      font-size: 12px;
+    }
+
+    .sheets-actions-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding-top: 6px;
+    }
+
+    .sheets-right-btns {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
   </style>
 </head>
-<body class="min-h-screen pb-14">
-  <header class="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-16 py-2 flex flex-wrap items-center justify-between gap-3">
-      <div class="flex items-center gap-3 min-w-0">
-        <div class="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold text-sm shrink-0">
-          帳
-        </div>
-        <div class="truncate">
-          <h1 class="text-base sm:text-lg font-bold text-slate-900 truncate">銀行帳戶餘額追蹤儀表板</h1>
-          <div class="flex items-center gap-2 text-xs text-slate-500">
-            <span id="syncStatusDot" class="inline-block w-2 h-2 rounded-full bg-slate-400"></span>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="brand-group">
+        <div class="brand-badge">帳</div>
+        <div class="brand-title-wrap">
+          <h1 class="site-title">銀行帳戶餘額追蹤儀表板</h1>
+          <div class="sync-status-row">
+            <span id="syncStatusDot" class="status-dot bg-slate-400"></span>
             <span id="syncStatusText">本機快取模式（尚未設定 Google Sheets）</span>
           </div>
         </div>
       </div>
 
-      <div class="flex flex-wrap items-center gap-2">
-        <nav class="inline-flex rounded-xl bg-slate-100 p-1 mr-1" aria-label="頁面切換">
-          <button id="tabDashboard" type="button" class="px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-lg bg-white text-slate-900 shadow-2xs transition">
+      <div class="header-actions">
+        <nav class="seg-group" aria-label="頁面切換">
+          <button id="tabDashboard" type="button" class="nav-tab is-active">
             📊 總覽儀表板
           </button>
-          <button id="tabRecords" type="button" class="px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5">
+          <button id="tabRecords" type="button" class="nav-tab">
             <span>📋 所有輸入紀錄明細</span>
-            <span id="navRecordsCountBadge" class="text-[11px] px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700 tabular-nums">0</span>
+            <span id="navRecordsCountBadge" class="count-pill tabular-nums">0</span>
           </button>
         </nav>
 
-        <button id="btnSyncNow" type="button" class="px-3 py-2 text-xs sm:text-sm font-medium rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition flex items-center gap-1.5" title="立即從 Google Sheets 同步資料">
+        <button id="btnSyncNow" type="button" class="btn btn-outline" title="立即從 Google Sheets 同步資料">
           <span>🔄</span>
-          <span class="hidden sm:inline">立即同步</span>
+          <span>立即同步</span>
         </button>
-        <button id="btnOpenSheetsModal" type="button" class="px-3 py-2 text-xs sm:text-sm font-medium rounded-lg border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 transition flex items-center gap-1.5">
+        <button id="btnOpenSheetsModal" type="button" class="btn btn-emerald">
           <span>☁️</span>
-          <span class="hidden md:inline">Google Sheets</span>
+          <span>Google Sheets</span>
         </button>
-        <button id="btnOpenAccountModal" type="button" class="px-3 py-2 text-xs sm:text-sm font-medium rounded-lg bg-slate-900 hover:bg-slate-800 text-white transition flex items-center gap-1.5">
+        <button id="btnOpenAccountModal" type="button" class="btn btn-primary">
           <span>⚙️</span>
-          <span class="hidden md:inline">帳戶管理</span>
+          <span>帳戶管理</span>
         </button>
       </div>
     </div>
   </header>
 
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
-    <div id="pageDashboard" class="space-y-6">
-      <section class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs">
-        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+  <main class="main-container">
+    <div id="pageDashboard" class="page-stack">
+      <section class="card">
+        <div class="summary-header">
           <div>
-            <div class="flex items-center gap-2 flex-wrap">
-              <h2 class="text-sm font-semibold text-slate-500">自選帳戶總餘額（依各帳戶最新一筆紀錄計算）</h2>
-              <span id="selectedMonthBadge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">資料月份：--</span>
+            <div class="summary-title-row">
+              <h2 class="summary-sub-label">自選帳戶總餘額（依各帳戶最新一筆紀錄計算）</h2>
+              <span id="selectedMonthBadge" class="month-badge">資料月份：--</span>
             </div>
-            <div class="flex items-baseline gap-3 mt-1">
-              <span id="selectedTotalDisplay" class="text-2xl sm:text-3xl font-bold text-slate-900 tabular-nums">$0</span>
-              <span id="selectedCountBadge" class="text-xs font-medium px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600">已選 0 個帳戶</span>
+            <div class="summary-amount-row">
+              <span id="selectedTotalDisplay" class="hero-total tabular-nums">$0</span>
+              <span id="selectedCountBadge" class="count-badge">已選 0 個帳戶</span>
             </div>
           </div>
-          <div class="flex flex-wrap items-center gap-2">
-            <button id="btnSelectAll" type="button" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition">全選帳戶</button>
-            <button id="btnClearAll" type="button" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition">取消全選</button>
-            <button id="btnExportCsv" type="button" class="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 transition">匯出 CSV</button>
-            <button id="btnExportJson" type="button" class="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 transition">備份 JSON</button>
-            <label class="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 transition cursor-pointer">
+
+          <div class="toolbar-actions">
+            <button id="btnSelectAll" type="button" class="btn btn-sm btn-soft">全選帳戶</button>
+            <button id="btnClearAll" type="button" class="btn btn-sm btn-soft">取消全選</button>
+            <button id="btnExportCsv" type="button" class="btn btn-sm btn-outline">匯出 CSV</button>
+            <button id="btnExportJson" type="button" class="btn btn-sm btn-outline">備份 JSON</button>
+            <label class="btn btn-sm btn-outline">
               匯入 JSON
               <input id="inputImportJson" type="file" accept=".json" class="hidden" />
             </label>
           </div>
         </div>
 
-        <div id="accountChipsContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 pt-4"></div>
+        <div id="accountChipsContainer" class="chips-grid"></div>
       </section>
 
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <section class="lg:col-span-4 bg-white rounded-2xl border border-slate-200 p-5 shadow-xs h-fit">
-          <div class="flex items-center justify-between mb-4">
-            <h2 id="formTitle" class="text-base font-bold text-slate-900">新增餘額紀錄</h2>
-            <button id="btnCancelEdit" type="button" class="hidden text-xs text-slate-500 hover:text-slate-800 underline">取消編輯</button>
+      <div class="mid-grid">
+        <section class="card">
+          <div class="card-header-row">
+            <h2 id="formTitle" class="card-title">新增餘額紀錄</h2>
+            <button id="btnCancelEdit" type="button" class="link-muted hidden">取消編輯</button>
           </div>
 
-          <form id="recordForm" class="space-y-4">
+          <form id="recordForm" class="form-stack">
             <input type="hidden" id="editingRecordId" />
 
             <div>
-              <label for="recordDate" class="block text-xs font-semibold text-slate-600 mb-1.5">紀錄日期</label>
-              <input id="recordDate" type="date" required class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900" />
+              <label for="recordDate" class="field-label">紀錄日期</label>
+              <input id="recordDate" type="date" required class="field-input" />
             </div>
 
             <div>
-              <div class="flex items-center justify-between mb-1.5">
-                <label for="recordBankName" class="block text-xs font-semibold text-slate-600">銀行名稱</label>
-                <button id="btnFormAddAccount" type="button" class="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline">＋ 新增 / 修改帳戶</button>
+              <div class="label-row">
+                <label for="recordBankName" class="field-label" style="margin-bottom:0;">銀行名稱</label>
+                <button id="btnFormAddAccount" type="button" class="link-btn">＋ 新增 / 修改帳戶</button>
               </div>
-              <select id="recordBankName" required class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-900"></select>
+              <select id="recordBankName" required class="field-select"></select>
             </div>
 
             <div>
-              <label for="recordBalance" class="block text-xs font-semibold text-slate-600 mb-1.5">餘額（元）</label>
-              <input id="recordBalance" type="number" step="any" required placeholder="例如：150000" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-slate-900" />
+              <label for="recordBalance" class="field-label">餘額（元）</label>
+              <input id="recordBalance" type="number" step="any" required placeholder="例如：150000" class="field-input tabular-nums" />
             </div>
 
-            <button type="submit" id="btnSubmitRecord" class="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold transition">
+            <button type="submit" id="btnSubmitRecord" class="btn btn-primary" style="width:100%;padding:11px 16px;">
               儲存紀錄
             </button>
           </form>
         </section>
 
-        <section class="lg:col-span-8 bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+        <section class="card">
+          <div class="snapshot-top-bar">
             <div>
-              <h2 class="text-base font-bold text-slate-900">當月各帳戶最後一筆餘額</h2>
-              <p class="text-xs text-slate-500 mt-0.5">自動抓取所選月份內，每個帳戶日期最新的一筆紀錄；可勾選帳戶計算當月加總與差額</p>
+              <h2 class="card-title">當月各帳戶最後一筆餘額</h2>
+              <p class="card-desc">自動抓取所選月份內，每個帳戶日期最新的一筆紀錄；可勾選帳戶計算當月加總與差額</p>
             </div>
-            <div class="flex flex-wrap items-center gap-2">
-              <button id="btnSnapSelectAll" type="button" class="px-2.5 py-1 text-xs font-medium rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition">全選</button>
-              <button id="btnSnapClearAll" type="button" class="px-2.5 py-1 text-xs font-medium rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition">清空</button>
-              <label for="snapshotMonthSelect" class="text-xs font-medium text-slate-600">檢視月份：</label>
-              <select id="snapshotMonthSelect" class="rounded-xl border border-slate-300 px-3 py-1.5 text-sm bg-white font-medium focus:outline-none focus:ring-2 focus:ring-slate-900"></select>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-            <div class="p-3.5 rounded-xl bg-slate-900 text-white flex flex-col justify-between">
-              <div class="flex items-center justify-between gap-2">
-                <span id="snapshotSumTitle" class="text-xs font-medium text-slate-300">當月所選帳戶最後一筆加總</span>
-                <span id="snapshotSelectedCount" class="text-[11px] px-2 py-0.5 rounded-full bg-white/15 text-slate-100">已選 0 個</span>
-              </div>
-              <div id="snapshotSelectedSum" class="text-xl sm:text-2xl font-bold tabular-nums mt-1.5">$0</div>
-            </div>
-
-            <div class="p-3.5 rounded-xl border border-slate-200 bg-slate-50 flex flex-col justify-between">
-              <div class="flex items-center justify-between gap-2">
-                <span class="text-xs font-semibold text-slate-600">當月加總 − 自選帳戶總餘額</span>
-                <span id="snapshotDiffTopRef" class="text-[11px] text-slate-400 tabular-nums">自選總額：$0</span>
-              </div>
-              <div id="snapshotDiffAmount" class="text-xl sm:text-2xl font-bold tabular-nums mt-1.5 text-slate-900">$0</div>
+            <div class="snapshot-controls">
+              <button id="btnSnapSelectAll" type="button" class="btn btn-sm btn-soft">全選</button>
+              <button id="btnSnapClearAll" type="button" class="btn btn-sm btn-soft">清空</button>
+              <label for="snapshotMonthSelect" style="font-size:12px;font-weight:500;color:#475569;">檢視月份：</label>
+              <select id="snapshotMonthSelect" class="field-select-sm"></select>
             </div>
           </div>
 
-          <div id="monthSnapshotGrid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3"></div>
+          <div class="snapshot-summary-grid">
+            <div class="snap-dark-box">
+              <div class="snap-dark-top">
+                <span id="snapshotSumTitle" class="snap-dark-label">當月所選帳戶最後一筆加總</span>
+                <span id="snapshotSelectedCount" class="snap-dark-pill">已選 0 個</span>
+              </div>
+              <div id="snapshotSelectedSum" class="snap-dark-value tabular-nums">$0</div>
+            </div>
+
+            <div class="snap-diff-box">
+              <div class="snap-diff-top">
+                <span class="snap-diff-label">當月加總 − 自選帳戶總餘額</span>
+                <span id="snapshotDiffTopRef" class="snap-diff-ref tabular-nums">自選總額：$0</span>
+              </div>
+              <div id="snapshotDiffAmount" class="snap-diff-value diff-zero tabular-nums">$0</div>
+            </div>
+          </div>
+
+          <div id="monthSnapshotGrid" class="snapshot-items-grid"></div>
         </section>
       </div>
 
-      <section class="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+      <section class="card">
+        <div class="chart-header">
           <div>
-            <h2 class="text-base font-bold text-slate-900">每月帳戶餘額變化柱狀圖</h2>
-            <p class="text-xs text-slate-500 mt-0.5">顯示各月份每個帳戶月底／最新餘額變化（可點擊月份柱狀切換快照月份）</p>
+            <h2 class="card-title">每月帳戶餘額變化柱狀圖</h2>
+            <p class="card-desc">顯示各月份每個帳戶月底／最新餘額變化（可點擊月份柱狀切換快照月份）</p>
           </div>
-          <div class="inline-flex rounded-xl bg-slate-100 p-1 self-start">
-            <button id="btnChartStacked" type="button" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white text-slate-900 shadow-2xs transition">堆疊柱狀圖</button>
-            <button id="btnChartGrouped" type="button" class="px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition">分組比較圖</button>
+          <div class="seg-group">
+            <button id="btnChartStacked" type="button" class="seg-btn is-active">堆疊柱狀圖</button>
+            <button id="btnChartGrouped" type="button" class="seg-btn">分組比較圖</button>
           </div>
         </div>
 
-        <div class="relative h-72 sm:h-80 w-full">
+        <div class="chart-box">
           <canvas id="balanceChartCanvas"></canvas>
         </div>
       </section>
 
-      <div class="bg-white rounded-2xl border border-slate-200 px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-        <div class="text-xs sm:text-sm text-slate-600">
+      <div class="jump-banner">
+        <div class="jump-banner-text">
           想查看、篩選、編輯或刪除完整的歷史輸入紀錄？已移至獨立頁面方便閱讀。
         </div>
-        <button id="btnJumpToRecordsPage" type="button" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-900 text-xs sm:text-sm font-semibold transition shrink-0">
+        <button id="btnJumpToRecordsPage" type="button" class="btn btn-soft">
           前往「所有輸入紀錄明細」頁面 →
         </button>
       </div>
     </div>
 
-    <div id="pageRecords" class="hidden space-y-6">
-      <section class="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-4 border-b border-slate-100 mb-4">
-          <div class="flex items-center gap-3">
-            <button id="btnBackToDashboard" type="button" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 transition">
+    <div id="pageRecords" class="page-stack hidden">
+      <section class="card">
+        <div class="records-header">
+          <div class="records-title-group">
+            <button id="btnBackToDashboard" type="button" class="btn btn-sm btn-soft">
               ← 返回總覽
             </button>
             <div>
-              <h2 class="text-base sm:text-lg font-bold text-slate-900">所有輸入紀錄明細</h2>
-              <p id="recordsSummaryText" class="text-xs text-slate-500 mt-0.5">共 0 筆紀錄</p>
+              <h2 class="card-title" style="font-size:18px;">所有輸入紀錄明細</h2>
+              <p id="recordsSummaryText" class="card-desc">共 0 筆紀錄</p>
             </div>
           </div>
 
-          <div class="flex flex-wrap items-center gap-2">
-            <select id="filterBankSelect" class="rounded-xl border border-slate-300 px-3 py-1.5 text-xs sm:text-sm bg-white">
+          <div class="toolbar-actions">
+            <select id="filterBankSelect" class="field-select-sm">
               <option value="ALL">全部銀行</option>
             </select>
-            <select id="filterMonthSelect" class="rounded-xl border border-slate-300 px-3 py-1.5 text-xs sm:text-sm bg-white">
+            <select id="filterMonthSelect" class="field-select-sm">
               <option value="ALL">全部月份</option>
             </select>
           </div>
         </div>
 
-        <div class="overflow-x-auto">
-          <table class="w-full text-left border-collapse">
+        <div class="table-wrap">
+          <table class="records-table">
             <thead>
-              <tr class="border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                <th class="py-3 px-3">紀錄日期</th>
-                <th class="py-3 px-3">銀行名稱</th>
-                <th class="py-3 px-3 text-right">餘額</th>
-                <th class="py-3 px-3 text-right">操作</th>
+              <tr>
+                <th>紀錄日期</th>
+                <th>銀行名稱</th>
+                <th class="th-right">餘額</th>
+                <th class="th-right">操作</th>
               </tr>
             </thead>
-            <tbody id="recordsTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
+            <tbody id="recordsTableBody"></tbody>
           </table>
         </div>
       </section>
     </div>
   </main>
 
-  <div id="accountModal" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-2xs flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl border border-slate-200 max-w-xl w-full max-h-[88vh] flex flex-col shadow-xl">
-      <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
-        <h3 class="text-base font-bold text-slate-900">帳戶管理（新增 / 修改名稱 / 代表色）</h3>
-        <button id="btnCloseAccountModal" type="button" class="text-slate-400 hover:text-slate-700 text-xl leading-none">&times;</button>
+  <div id="accountModal" class="modal-backdrop hidden">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3 class="modal-title">帳戶管理（新增 / 修改名稱 / 代表色）</h3>
+        <button id="btnCloseAccountModal" type="button" class="modal-close">×</button>
       </div>
 
-      <div class="p-5 overflow-y-auto space-y-5">
+      <div class="modal-body">
         <div>
-          <p class="text-xs font-semibold text-slate-600 mb-2">新增銀行帳戶</p>
-          <form id="addAccountForm" class="flex flex-col sm:flex-row gap-2.5 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-            <input id="newAccountColor" type="color" value="#0284c7" class="h-10 w-14 rounded-lg border border-slate-300 cursor-pointer bg-white p-0.5 shrink-0" title="選擇代表色" />
-            <input id="newAccountName" type="text" required placeholder="輸入新銀行名稱（例如：永豐大戶）" class="flex-1 rounded-xl border border-slate-300 px-3.5 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-900" />
-            <button type="submit" class="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold shrink-0 transition">
+          <p class="field-label">新增銀行帳戶</p>
+          <form id="addAccountForm" class="add-account-box">
+            <input id="newAccountColor" type="color" value="#0284c7" class="color-picker-lg" title="選擇代表色" />
+            <input id="newAccountName" type="text" required placeholder="輸入新銀行名稱（例如：永豐大戶）" class="field-input add-account-input" />
+            <button type="submit" class="btn btn-primary">
               ＋ 新增帳戶
             </button>
           </form>
         </div>
 
         <div>
-          <p class="text-xs font-semibold text-slate-600 mb-2">修改現有帳戶（直接修改名稱或點擊色塊換色，歷史紀錄會同步改名）</p>
-          <div id="accountListEditor" class="space-y-2.5"></div>
+          <p class="field-label">修改現有帳戶（直接修改名稱或點擊色塊換色，歷史紀錄會同步改名）</p>
+          <div id="accountListEditor" class="account-editor-list"></div>
         </div>
       </div>
 
-      <div class="px-5 py-3.5 border-t border-slate-200 flex items-center justify-between bg-slate-50 rounded-b-2xl">
-        <button id="btnResetDefaultAccounts" type="button" class="text-xs text-rose-600 hover:text-rose-700 font-medium">恢復預設 7 帳戶</button>
-        <button id="btnSaveAccountModal" type="button" class="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold">完成並儲存</button>
+      <div class="modal-footer">
+        <button id="btnResetDefaultAccounts" type="button" class="btn-danger-ghost" style="font-size:12px;font-weight:600;border-radius:8px;padding:6px 10px;cursor:pointer;">恢復預設 7 帳戶</button>
+        <button id="btnSaveAccountModal" type="button" class="btn btn-primary">完成並儲存</button>
       </div>
     </div>
   </div>
 
-  <div id="sheetsModal" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-2xs flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl border border-slate-200 max-w-lg w-full shadow-xl overflow-hidden">
-      <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
-        <h3 class="text-base font-bold text-slate-900">Google Sheets 雲端同步設定</h3>
-        <button id="btnCloseSheetsModal" type="button" class="text-slate-400 hover:text-slate-700 text-xl leading-none">&times;</button>
+  <div id="sheetsModal" class="modal-backdrop hidden">
+    <div class="modal-panel modal-panel-sm">
+      <div class="modal-header">
+        <h3 class="modal-title">Google Sheets 雲端同步設定</h3>
+        <button id="btnCloseSheetsModal" type="button" class="modal-close">×</button>
       </div>
 
-      <div class="p-5 space-y-4">
-        <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
-          請貼上您從 Google Apps Script 部署取得的 <code class="px-1.5 py-0.5 bg-slate-100 rounded text-slate-800">/exec</code> 網址。網址只會儲存在您目前這台裝置的瀏覽器本機，不會寫入公開網頁原始碼。
+      <div class="modal-body">
+        <p class="sheets-help-text">
+          請貼上您從 Google Apps Script 部署取得的 <code class="inline-code">/exec</code> 網址。網址只會儲存在您目前這台裝置的瀏覽器本機，不會寫入公開網頁原始碼。
         </p>
 
         <div>
-          <label for="gasUrlInput" class="block text-xs font-semibold text-slate-700 mb-1.5">Google Apps Script Web App 網址（/exec）</label>
-          <input id="gasUrlInput" type="url" placeholder="[https://script.google.com/macros/s/.../exec](https://script.google.com/macros/s/.../exec)" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600" />
+          <label for="gasUrlInput" class="field-label">Google Apps Script Web App 網址（/exec）</label>
+          <input id="gasUrlInput" type="url" placeholder="https://script.google.com/macros/s/.../exec" class="field-input" />
         </div>
 
-        <div class="flex items-center justify-between pt-2 gap-2">
-          <button id="btnClearGasUrl" type="button" class="px-3 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-xl transition">清除網址（改回本機）</button>
-          <div class="flex items-center gap-2">
-            <button id="btnPullFromSheets" type="button" class="px-3.5 py-2 text-xs sm:text-sm font-medium border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl transition">從雲端下載覆蓋</button>
-            <button id="btnSaveGasUrlAndPush" type="button" class="px-4 py-2 text-xs sm:text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition">儲存並同步上傳</button>
+        <div class="sheets-actions-row">
+          <button id="btnClearGasUrl" type="button" class="btn btn-sm btn-danger-ghost">清除網址（改回本機）</button>
+          <div class="sheets-right-btns">
+            <button id="btnPullFromSheets" type="button" class="btn btn-sm btn-outline">從雲端下載覆蓋</button>
+            <button id="btnSaveGasUrlAndPush" type="button" class="btn btn-sm btn-emerald-solid">儲存並同步上傳</button>
           </div>
         </div>
       </div>
@@ -357,14 +1412,14 @@
       if (activePage === 'records') {
         pageDashboard.classList.add('hidden');
         pageRecords.classList.remove('hidden');
-        tabRecords.className = 'px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-lg bg-white text-slate-900 shadow-2xs transition flex items-center gap-1.5';
-        tabDashboard.className = 'px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition';
+        tabRecords.className = 'nav-tab is-active';
+        tabDashboard.className = 'nav-tab';
         renderRecordsTable();
       } else {
         pageRecords.classList.add('hidden');
         pageDashboard.classList.remove('hidden');
-        tabDashboard.className = 'px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-lg bg-white text-slate-900 shadow-2xs transition';
-        tabRecords.className = 'px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center gap-1.5';
+        tabDashboard.className = 'nav-tab is-active';
+        tabRecords.className = 'nav-tab';
         renderChart();
       }
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -532,8 +1587,8 @@
       document.getElementById('snapshotDiffTopRef').textContent = `自選總額：${formatCurrency(currentTopSelectedTotal)}`;
       const diffEl = document.getElementById('snapshotDiffAmount');
       diffEl.textContent = formatCurrency(diff, true);
-      diffEl.className = 'text-xl sm:text-2xl font-bold tabular-nums mt-1.5 ' + (
-        diff > 0 ? 'text-emerald-600' : diff < 0 ? 'text-rose-600' : 'text-slate-900'
+      diffEl.className = 'snap-diff-value tabular-nums ' + (
+        diff > 0 ? 'diff-pos' : diff < 0 ? 'diff-neg' : 'diff-zero'
       );
     }
 
@@ -550,16 +1605,14 @@
 
         const card = document.createElement('button');
         card.type = 'button';
-        card.className = `flex items-center justify-between p-3 rounded-xl border text-left transition ${
-          checked ? 'bg-slate-50 border-slate-300 shadow-2xs' : 'bg-white border-slate-200 opacity-60 hover:opacity-90'
-        }`;
+        card.className = `account-chip-card ${checked ? 'is-checked' : 'is-unchecked'}`;
         card.innerHTML = `
-          <div class="flex items-center gap-2.5 min-w-0">
-            <input type="checkbox" ${checked ? 'checked' : ''} class="w-4 h-4 rounded accent-slate-900 pointer-events-none" />
-            <span class="w-3 h-3 rounded-full shrink-0" style="background-color: ${acc.color}"></span>
-            <span class="font-semibold text-sm text-slate-800 truncate">${escapeHtml(acc.name)}</span>
+          <div class="chip-left">
+            <input type="checkbox" ${checked ? 'checked' : ''} class="chip-checkbox" />
+            <span class="color-dot" style="background-color: ${acc.color}"></span>
+            <span class="chip-name">${escapeHtml(acc.name)}</span>
           </div>
-          <span class="text-xs sm:text-sm font-bold text-slate-900 tabular-nums ml-2 shrink-0">${formatCurrency(latestBal)}</span>
+          <span class="chip-balance tabular-nums">${formatCurrency(latestBal)}</span>
         `;
         card.addEventListener('click', () => {
           if (selectedBanks.has(acc.name)) selectedBanks.delete(acc.name);
@@ -642,20 +1695,18 @@
         const isChecked = snapshotSelectedBanks.has(acc.name);
 
         const item = document.createElement('div');
-        item.className = `p-3.5 rounded-xl border transition cursor-pointer flex flex-col justify-between gap-2 ${
-          isChecked ? 'border-slate-300 bg-slate-50/90' : 'border-slate-200 bg-white opacity-60 hover:opacity-90'
-        }`;
+        item.className = `snap-item-card ${isChecked ? 'is-checked' : 'is-unchecked'}`;
         item.innerHTML = `
-          <div class="flex items-center justify-between gap-2">
-            <div class="flex items-center gap-2 min-w-0">
-              <input type="checkbox" ${isChecked ? 'checked' : ''} class="w-4 h-4 rounded accent-slate-900 pointer-events-none shrink-0" />
-              <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${acc.color}"></span>
-              <span class="text-sm font-semibold text-slate-800 truncate">${escapeHtml(acc.name)}</span>
+          <div class="snap-item-head">
+            <div class="chip-left">
+              <input type="checkbox" ${isChecked ? 'checked' : ''} class="chip-checkbox" />
+              <span class="color-dot-sm" style="background-color: ${acc.color}"></span>
+              <span class="chip-name">${escapeHtml(acc.name)}</span>
             </div>
-            <span class="text-[11px] text-slate-400 shrink-0">${latest ? latest.date : '無紀錄'}</span>
+            <span class="snap-item-date">${latest ? latest.date : '無紀錄'}</span>
           </div>
-          <div class="text-lg font-bold text-slate-900 tabular-nums pl-6">
-            ${latest ? formatCurrency(latest.balance) : '<span class="text-sm font-normal text-slate-400">本月尚未輸入</span>'}
+          <div class="snap-item-amount tabular-nums">
+            ${latest ? formatCurrency(latest.balance) : '<span class="snap-item-empty">本月尚未輸入</span>'}
           </div>
         `;
 
@@ -749,16 +1800,11 @@
                 size: 11
               },
               color: '#0f172a',
-              formatter: (value, context) => {
+              formatter: (_value, context) => {
                 const mIdx = context.dataIndex;
-                if (chartMode === 'stacked') {
-                  if (context.datasetIndex !== topDatasetIndexByMonth[mIdx]) return '';
-                  const total = monthTotals[mIdx] || 0;
-                  return total !== 0 ? formatCompactAmount(total) : '';
-                } else {
-                  const val = Number(value) || 0;
-                  return val !== 0 ? formatCompactAmount(val) : '';
-                }
+                if (context.datasetIndex !== topDatasetIndexByMonth[mIdx]) return '';
+                const total = monthTotals[mIdx] || 0;
+                return total !== 0 ? formatCompactAmount(total) : '';
               }
             },
             tooltip: {
@@ -801,25 +1847,25 @@
 
       const tbody = document.getElementById('recordsTableBody');
       if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" class="py-8 text-center text-slate-400">尚無符合條件的餘額紀錄</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" class="empty-cell">尚無符合條件的餘額紀錄</td></tr>`;
         return;
       }
 
       tbody.innerHTML = filtered.map(r => {
         const color = getAccountColor(r.bankName);
         return `
-          <tr class="hover:bg-slate-50/80 transition">
-            <td class="py-3 px-3 font-medium text-slate-700 tabular-nums whitespace-nowrap">${escapeHtml(r.date)}</td>
-            <td class="py-3 px-3 whitespace-nowrap">
-              <span class="inline-flex items-center gap-2 font-semibold text-slate-800">
-                <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${color}"></span>
+          <tr>
+            <td class="td-nowrap tabular-nums" style="font-weight:500;color:#334155;">${escapeHtml(r.date)}</td>
+            <td class="td-nowrap">
+              <span class="bank-inline">
+                <span class="color-dot-sm" style="background-color: ${color}"></span>
                 ${escapeHtml(r.bankName)}
               </span>
             </td>
-            <td class="py-3 px-3 text-right font-bold text-slate-900 tabular-nums whitespace-nowrap">${formatCurrency(r.balance)}</td>
-            <td class="py-3 px-3 text-right whitespace-nowrap space-x-2">
-              <button type="button" onclick="startEditRecord('${r.id}')" class="text-xs font-medium text-blue-600 hover:underline">編輯</button>
-              <button type="button" onclick="deleteRecord('${r.id}')" class="text-xs font-medium text-rose-600 hover:underline">刪除</button>
+            <td class="td-right td-nowrap tabular-nums" style="font-weight:700;color:#0f172a;">${formatCurrency(r.balance)}</td>
+            <td class="td-right td-nowrap">
+              <button type="button" onclick="startEditRecord('${r.id}')" class="action-link-edit">編輯</button>
+              <button type="button" onclick="deleteRecord('${r.id}')" class="action-link-del">刪除</button>
             </td>
           </tr>
         `;
@@ -915,11 +1961,11 @@
 
       accounts.forEach((acc, idx) => {
         const row = document.createElement('div');
-        row.className = 'flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-white';
+        row.className = 'account-editor-row';
         row.innerHTML = `
-          <input type="color" value="${escapeAttr(acc.color)}" class="h-9 w-12 rounded-lg border border-slate-200 cursor-pointer p-0.5 shrink-0" />
-          <input type="text" value="${escapeAttr(acc.name)}" class="flex-1 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-slate-900" />
-          <button type="button" class="px-2.5 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-lg shrink-0">刪除</button>
+          <input type="color" value="${escapeAttr(acc.color)}" class="color-picker-sm" />
+          <input type="text" value="${escapeAttr(acc.name)}" class="account-editor-name" />
+          <button type="button" class="btn btn-sm btn-danger-ghost">刪除</button>
         `;
 
         const colorInput = row.children[0];
@@ -1078,15 +2124,15 @@
 
     document.getElementById('btnChartStacked').addEventListener('click', () => {
       chartMode = 'stacked';
-      document.getElementById('btnChartStacked').className = 'px-3 py-1.5 text-xs font-semibold rounded-lg bg-white text-slate-900 shadow-2xs transition';
-      document.getElementById('btnChartGrouped').className = 'px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition';
+      document.getElementById('btnChartStacked').className = 'seg-btn is-active';
+      document.getElementById('btnChartGrouped').className = 'seg-btn';
       renderChart();
     });
 
     document.getElementById('btnChartGrouped').addEventListener('click', () => {
       chartMode = 'grouped';
-      document.getElementById('btnChartGrouped').className = 'px-3 py-1.5 text-xs font-semibold rounded-lg bg-white text-slate-900 shadow-2xs transition';
-      document.getElementById('btnChartStacked').className = 'px-3 py-1.5 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition';
+      document.getElementById('btnChartGrouped').className = 'seg-btn is-active';
+      document.getElementById('btnChartStacked').className = 'seg-btn';
       renderChart();
     });
 
@@ -1132,14 +2178,14 @@
 
     function escapeHtml(str) {
       return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+        .replace(/&/g, '&')
+        .replace(/</g, '<')
+        .replace(/>/g, '>')
+        .replace(/"/g, '"');
     }
 
     function escapeAttr(str) {
-      return String(str).replace(/"/g, '&quot;');
+      return String(str).replace(/"/g, '"');
     }
 
     initState();
